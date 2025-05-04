@@ -13,7 +13,7 @@ The agent SDK created during this phase will serve as the foundation for all spe
 After completing this phase, we will have:
 
 1. A functional `BaseAgent` class that all specialized agents will inherit from
-2. LLM integration with a selected provider (OpenAI, Anthropic, or Vertex AI)
+2. LLM integration with a selected provider (Google Vertex AI with Gemini models)
 3. A comprehensive logging system recording all agent activities to PostgreSQL
 4. Vector memory implementation for semantic search capabilities
 5. A basic CLI for testing agent interactions
@@ -23,7 +23,7 @@ After completing this phase, we will have:
 ### Task 1: LLM Provider Selection and Integration
 
 **What needs to be done:**
-Select and integrate with an LLM provider (OpenAI, Anthropic, or Vertex AI) that will power our agent system.
+Select and integrate with an LLM provider (Google Vertex AI with Gemini models) that will power our agent system.
 
 **Why this task is necessary:**
 LLMs are the core reasoning engine for all agents. Properly abstracting this integration allows us to switch providers if needed and ensures consistent interaction patterns across the system.
@@ -31,9 +31,7 @@ LLMs are the core reasoning engine for all agents. Properly abstracting this int
 **Files to be created:**
 
 - `agents/llm/base.py` - Abstract base class for LLM providers
-- `agents/llm/openai_provider.py` - OpenAI implementation
-- `agents/llm/anthropic_provider.py` - Anthropic Claude implementation
-- `agents/llm/vertex_provider.py` - Google Vertex AI implementation
+- `agents/llm/vertex_gemini_provider.py` - Google Vertex AI Gemini implementation
 - `agents/llm/__init__.py` - Package initialization
 
 **Implementation guidelines:**
@@ -86,100 +84,88 @@ class LLMProvider(ABC):
 ```
 
 ```python
-# agents/llm/anthropic_provider.py
+# agents/llm/vertex_gemini_provider.py
 
-import anthropic
 import os
 import json
 from typing import Dict, List, Any, Optional
 import aiohttp
 from .base import LLMProvider
+from google.cloud import aiplatform
+from google.oauth2 import service_account
 
-class AnthropicProvider(LLMProvider):
-    """Anthropic Claude LLM provider."""
+class VertexGeminiProvider(LLMProvider):
+    """Google Vertex AI Gemini LLM provider."""
 
-    def __init__(self, model: str = "claude-3-5-sonnet-20240620"):
-        self.api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable is required")
-        self.client = anthropic.Anthropic(api_key=self.api_key)
-        self.model = model
+    def __init__(self, model: str = "gemini-2.5-pro", project: Optional[str] = None, location: Optional[str] = "us-central1"):
+        self.project = project or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        self.location = location
+        if not self.project:
+            raise ValueError("GOOGLE_CLOUD_PROJECT environment variable or project parameter is required")
+
+        # Initialize Vertex AI
+        aiplatform.init(project=self.project, location=self.location)
+
+        # Load the model
+        self.model_instance = aiplatform.GenerativeModel(model)
+        self.embedding_model = aiplatform.language_models.TextEmbeddingModel.from_pretrained("text-embedding-004") # Use a standard embedding model
+        self.model_name = model
+
 
     async def generate_completion(
         self,
         prompt: str,
-        max_tokens: int = 1000,
+        max_tokens: int = 8192, # Gemini 2.5 Pro has a large context window
         temperature: float = 0.7,
         system_message: Optional[str] = None
     ) -> str:
-        """Generate a text completion using Anthropic Claude."""
-        system = system_message or "You are a helpful AI assistant."
+        """Generate a text completion using Vertex AI Gemini."""
 
-        response = await self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            system=system,
-            messages=[{"role": "user", "content": prompt}]
+        # Gemini API uses a different format, often combining system + prompt
+        full_prompt = f"{system_message}\n\n{prompt}" if system_message else prompt
+
+        response = await self.model_instance.generate_content_async(
+            full_prompt,
+            generation_config={
+                "max_output_tokens": max_tokens,
+                "temperature": temperature,
+            }
         )
 
-        return response.content[0].text
+        return response.text
 
     async def generate_chat_completion(
         self,
         messages: List[Dict[str, str]],
-        max_tokens: int = 1000,
+        max_tokens: int = 8192,
         temperature: float = 0.7,
         system_message: Optional[str] = None
     ) -> str:
-        """Generate a chat completion using Anthropic Claude."""
-        system = system_message or "You are a helpful AI assistant."
+        """Generate a chat completion using Vertex AI Gemini."""
 
-        # Convert messages to Anthropic format
-        anthropic_messages = []
-        for message in messages:
-            anthropic_messages.append({
-                "role": message["role"],
-                "content": message["content"]
-            })
+        # Convert messages to Vertex AI format
+        # Note: Vertex AI format might differ slightly, check documentation
+        history = []
+        for msg in messages:
+            history.append({"role": msg["role"], "parts": [{"text": msg["content"]}]})
 
-        response = await self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            system=system,
-            messages=anthropic_messages
+        chat = self.model_instance.start_chat(history=history)
+
+        response = await chat.send_message_async(
+            messages[-1]["content"], # Assuming last message is user query
+             generation_config={
+                "max_output_tokens": max_tokens,
+                "temperature": temperature,
+            }
         )
 
-        return response.content[0].text
+        return response.text
 
-    async def generate_embeddings(self, text: str) -> List[float]:
-        """Generate embeddings using Anthropic's API.
+    async def generate_embeddings(self, text: str, task_type: str = "RETRIEVAL_DOCUMENT") -> List[float]:
+        """Generate embeddings using Vertex AI Text Embedding Model."""
 
-        Note: Using OpenAI's embeddings service as Claude doesn't yet have a
-        native embeddings API. In production, you may want to use a dedicated
-        embeddings service or OpenAI's embedding API.
-        """
-        # For now, we'll use OpenAI's embeddings API
-        # This should be replaced when Anthropic provides an embeddings API
-        openai_api_key = os.environ.get("OPENAI_API_KEY")
-        if not openai_api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is required for embeddings")
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://api.openai.com/v1/embeddings",
-                headers={
-                    "Authorization": f"Bearer {openai_api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "input": text,
-                    "model": "text-embedding-3-large"
-                }
-            ) as response:
-                result = await response.json()
-                return result["data"][0]["embedding"]
+        embeddings = await self.embedding_model.get_embeddings_async([{ "content": text, "task_type": task_type }])
+        return embeddings[0].values
 
     async def function_calling(
         self,
@@ -187,40 +173,37 @@ class AnthropicProvider(LLMProvider):
         functions: List[Dict[str, Any]],
         temperature: float = 0.7
     ) -> Dict[str, Any]:
-        """Call functions based on Claude reasoning."""
-        system_message = """You have access to functions to help with your task.
-        Analyze the user's request and call the appropriate function."""
+        """Call functions based on Gemini reasoning."""
 
-        # Convert messages to Anthropic format
-        anthropic_messages = []
-        for message in messages:
-            anthropic_messages.append({
-                "role": message["role"],
-                "content": message["content"]
-            })
+        # Convert messages to Vertex AI format
+        history = []
+        for msg in messages:
+            history.append({"role": msg["role"], "parts": [{"text": msg["content"]}]})
 
-        tools = [{"type": "function", "function": func} for func in functions]
+        # Convert function definitions to Vertex AI Tool format
+        tools = [aiplatform.gapic.Tool(function_declarations=functions)]
 
-        response = await self.client.messages.create(
-            model=self.model,
-            temperature=temperature,
-            system=system_message,
-            messages=anthropic_messages,
-            tools=tools
+        chat = self.model_instance.start_chat(history=history)
+
+        # Send message with tools
+        response = await chat.send_message_async(
+            messages[-1]["content"],
+            tools=tools,
+             generation_config={
+                "temperature": temperature,
+            }
         )
 
-        if response.tool_use:
-            tool_call = response.tool_use[0]
-            function_name = tool_call.name
-            function_args = json.loads(tool_call.input)
-
-            return {
-                "function_name": function_name,
-                "function_args": function_args,
-                "content": response.content[0].text if response.content else ""
+        # Check for function call in response
+        function_call = response.candidates[0].content.parts[0].function_call
+        if function_call:
+             return {
+                "function_name": function_call.name,
+                "function_args": type(function_call).to_dict(function_call.args),
+                "content": "" # Usually no text content when function is called
             }
         else:
-            return {"content": response.content[0].text, "function_name": None, "function_args": None}
+            return {"content": response.text, "function_name": None, "function_args": None}
 ```
 
 ### Task 2: Base Agent Class Implementation

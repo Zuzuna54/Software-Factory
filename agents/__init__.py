@@ -1,7 +1,8 @@
-"""
-Autonomous AI Development Team - Agents Module
+# agents/__init__.py
+# This file makes Python treat the agents directory as a package.
 
-This package contains all agent implementations and core functionality.
-"""
+from .base_agent import BaseAgent
 
-__version__ = "0.1.0" 
+# Import other core components or specialized agents as they are created
+
+__all__ = ["BaseAgent"]

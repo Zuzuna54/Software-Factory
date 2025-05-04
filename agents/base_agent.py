@@ -1,0 +1,543 @@
+# agents/base_agent.py
+
+import asyncio
+import json
+import logging
+import uuid
+from datetime import datetime
+from typing import Dict, List, Any, Optional, Tuple
+
+# Local imports (ensure correct relative paths)
+from .llm.base import LLMProvider
+from .memory.vector_memory import VectorMemory
+from .db.postgres import PostgresClient
+from .communication.protocol import (
+    CommunicationProtocol,
+    AgentMessage,
+    MessageType,
+)  # Added communication protocol
+
+logger_agent = logging.getLogger(__name__)  # Renamed logger to avoid conflict
+
+
+class BaseAgent:
+    """Base class for all agent types in the system."""
+
+    def __init__(
+        self,
+        agent_id: Optional[str] = None,
+        agent_type: str = "base",
+        agent_name: str = "BaseAgent",
+        llm_provider: Optional[LLMProvider] = None,
+        db_client: Optional[PostgresClient] = None,
+        vector_memory: Optional[VectorMemory] = None,
+        comm_protocol: Optional[CommunicationProtocol] = None,  # Added comm_protocol
+        capabilities: Optional[Dict[str, Any]] = None,
+    ):
+        self.agent_id = agent_id or str(uuid.uuid4())
+        self.agent_type = agent_type
+        self.agent_name = agent_name
+        self.llm_provider = llm_provider
+        self.db_client = db_client
+        self.vector_memory = vector_memory
+        self.comm_protocol = (
+            comm_protocol or CommunicationProtocol()
+        )  # Initialize if not provided
+        self.capabilities = capabilities or {}
+        # Use agent-specific logger name
+        self.logger = logging.getLogger(
+            f"agent.{self.agent_type}.{self.agent_id.split('-')[0]}"
+        )
+
+        # Defer agent registration until DB client is confirmed available
+        if self.db_client:
+            asyncio.create_task(self._register_agent())
+        else:
+            self.logger.warning(
+                f"Agent {self.agent_id} ({self.agent_name}) cannot register: DB client not provided."
+            )
+
+    async def _register_agent(self) -> None:
+        """Register this agent in the database if it doesn't exist."""
+        # Add check to ensure db_client exists and is initialized
+        if not self.db_client:
+            self.logger.error("Attempted to register agent without a database client.")
+            return
+        # Ensure DB pool is ready
+        try:
+            await self.db_client._ensure_initialized()
+        except Exception as e:
+            self.logger.error(
+                f"Failed to ensure DB initialization for agent registration: {e}",
+                exc_info=True,
+            )
+            return
+
+        try:
+            # Check if agent already exists
+            query_check = "SELECT agent_id FROM agents WHERE agent_id = $1"
+            result = await self.db_client.fetch_one(query_check, self.agent_id)
+
+            if not result:
+                # Agent doesn't exist, create it
+                query_insert = """
+                INSERT INTO agents (agent_id, agent_type, agent_name, capabilities, active)
+                VALUES ($1, $2, $3, $4, $5)
+                """
+                await self.db_client.execute(
+                    query_insert,
+                    self.agent_id,
+                    self.agent_type,
+                    self.agent_name,
+                    json.dumps(self.capabilities),
+                    True,  # Default to active
+                )
+                self.logger.info(
+                    f"Agent {self.agent_id} ({self.agent_name}) registered in database."
+                )
+            else:
+                self.logger.debug(f"Agent {self.agent_id} already registered.")
+                # Optionally update capabilities or active status here if needed
+        except Exception as e:
+            self.logger.error(
+                f"Error during agent registration for {self.agent_id}: {e}",
+                exc_info=True,
+            )
+
+    async def send_message(
+        self, message: AgentMessage
+    ) -> Optional[str]:  # Takes AgentMessage object
+        """Send a structured message to another agent and log it to the database."""
+        if not self.db_client:
+            self.logger.warning(
+                "No database client provided, message cannot be stored."
+            )
+            return None
+
+        # Ensure DB pool is ready
+        try:
+            await self.db_client._ensure_initialized()
+        except Exception as e:
+            self.logger.error(
+                f"Failed to ensure DB initialization for sending message: {e}",
+                exc_info=True,
+            )
+            return None
+
+        # Validate message sender matches this agent
+        if message.sender != self.agent_id:
+            self.logger.error(
+                f"Agent {self.agent_id} attempted to send message with incorrect sender ID {message.sender}"
+            )
+            # Or potentially modify the sender ID? For now, log error.
+            # message.sender = self.agent_id
+            return None
+
+        # Store message in database
+        query = """
+        INSERT INTO agent_messages (
+            message_id, timestamp, sender_id, receiver_id,
+            message_type, content, related_task_id,
+            metadata, parent_message_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING message_id
+        """
+
+        # Assuming parent_message_id is not part of AgentMessage dataclass for now
+        parent_message_id = None
+
+        try:
+            await self.db_client.execute(
+                query,
+                message.message_id,
+                message.created_at,  # Use timestamp from message object
+                message.sender,
+                message.receiver,
+                message.message_type.value,  # Use enum value
+                message.content,
+                message.related_task,
+                json.dumps(message.metadata or {}),
+                parent_message_id,
+            )
+
+            # Store vector embedding for semantic search (if components available)
+            if self.vector_memory and self.llm_provider:
+                try:
+                    embedding = await self.llm_provider.generate_embeddings(
+                        message.content
+                    )
+                    if embedding:
+                        await self.vector_memory.store_embedding(
+                            "agent_messages",  # Use a consistent entity type name
+                            message.message_id,
+                            embedding,
+                            metadata=message.metadata,  # Store message metadata with embedding
+                        )
+                    else:
+                        self.logger.warning(
+                            f"Failed to generate embedding for message {message.message_id}"
+                        )
+                except Exception as e:
+                    self.logger.error(
+                        f"Error storing embedding for message {message.message_id}: {e}",
+                        exc_info=True,
+                    )
+            else:
+                self.logger.debug(
+                    "Vector memory or LLM provider not available, skipping embedding storage."
+                )
+
+            # Log the activity
+            await self.log_activity(
+                activity_type="MessageSent",
+                description=f"Sent {message.message_type.value} message to {message.receiver}",
+                output_data={
+                    "message_id": message.message_id,
+                    "receiver_id": message.receiver,
+                    "type": message.message_type.value,
+                    "content_preview": message.content[:100],
+                },
+            )
+
+            self.logger.info(
+                f"Message sent: {message.message_id} to {message.receiver} (type: {message.message_type.value})"
+            )
+            return message.message_id
+
+        except Exception as e:
+            self.logger.error(
+                f"Error sending/storing message {message.message_id}: {e}",
+                exc_info=True,
+            )
+            return None
+
+    async def receive_messages(
+        self,
+        since_timestamp: Optional[datetime] = None,
+        message_type: Optional[MessageType] = None,
+        sender_id: Optional[str] = None,
+        related_task_id: Optional[str] = None,
+        limit: int = 100,
+        mark_as_read: bool = False,  # Optional: Add flag to mark messages as read?
+    ) -> List[AgentMessage]:
+        """Retrieve messages sent to this agent with optional filters."""
+        if not self.db_client:
+            self.logger.warning(
+                "No database client provided, cannot retrieve messages."
+            )
+            return []
+
+        # Ensure DB pool is ready
+        try:
+            await self.db_client._ensure_initialized()
+        except Exception as e:
+            self.logger.error(
+                f"Failed to ensure DB initialization for receiving messages: {e}",
+                exc_info=True,
+            )
+            return []
+
+        conditions = ["receiver_id = $1"]
+        params: List[Any] = [self.agent_id]
+        param_idx = 2
+
+        if since_timestamp:
+            conditions.append(f"timestamp > ${param_idx}")
+            params.append(since_timestamp)
+            param_idx += 1
+
+        if message_type:
+            conditions.append(f"message_type = ${param_idx}")
+            params.append(message_type.value)  # Use enum value
+            param_idx += 1
+
+        if sender_id:
+            conditions.append(f"sender_id = ${param_idx}")
+            params.append(sender_id)
+            param_idx += 1
+
+        if related_task_id:
+            conditions.append(f"related_task_id = ${param_idx}")
+            params.append(related_task_id)
+            param_idx += 1
+
+        query = f"""
+        SELECT
+            message_id, timestamp, sender_id, message_type,
+            content, related_task_id, metadata, parent_message_id
+        FROM agent_messages
+        WHERE {" AND ".join(conditions)}
+        ORDER BY timestamp DESC
+        LIMIT ${param_idx}
+        """
+        params.append(limit)
+
+        try:
+            results = await self.db_client.fetch_all(query, *params)
+            messages = []
+            for row in results:
+                msg_data = {
+                    "message_id": str(row["message_id"]),
+                    "sender": str(row["sender_id"]),
+                    "receiver": self.agent_id,  # We know the receiver is self
+                    "message_type": row["message_type"],
+                    "content": row["content"],
+                    "related_task": (
+                        str(row["related_task_id"]) if row["related_task_id"] else None
+                    ),
+                    "created_at": row["timestamp"],
+                    "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
+                    # Parent message ID might be useful context
+                    # "parent_message_id": str(row["parent_message_id"]) if row["parent_message_id"] else None
+                }
+                # Use the protocol parser to create AgentMessage object
+                messages.append(self.comm_protocol.parse_message(msg_data))
+
+            await self.log_activity(
+                activity_type="MessagesRetrieved",
+                description=f"Retrieved {len(messages)} messages",
+                input_data={
+                    "filters": {
+                        "since": str(since_timestamp) if since_timestamp else None,
+                        "type": message_type.value if message_type else None,
+                        "sender": sender_id,
+                        "task": related_task_id,
+                    }
+                },
+                output_data={"count": len(messages)},
+            )
+            return messages
+
+        except Exception as e:
+            self.logger.error(
+                f"Error retrieving messages for agent {self.agent_id}: {e}",
+                exc_info=True,
+            )
+            return []
+
+    async def search_messages(
+        self, query_text: str, limit: int = 10
+    ) -> List[AgentMessage]:
+        """Search for messages semantically similar to the query text."""
+        if not self.vector_memory or not self.llm_provider or not self.db_client:
+            self.logger.warning(
+                "Vector memory, LLM provider, or DB client not available for message search."
+            )
+            return []
+
+        # Ensure DB pool is ready
+        try:
+            await self.db_client._ensure_initialized()
+            await self.vector_memory._ensure_initialized()
+        except Exception as e:
+            self.logger.error(
+                f"Failed to ensure DB/Memory initialization for searching messages: {e}",
+                exc_info=True,
+            )
+            return []
+
+        try:
+            # Generate embedding for query
+            query_embedding = await self.llm_provider.generate_embeddings(
+                query_text, task_type="RETRIEVAL_QUERY"
+            )  # Use query task type
+            if not query_embedding:
+                self.logger.warning("Failed to generate query embedding for search.")
+                return []
+
+            # Search for similar message IDs in vector memory
+            similar_ids = await self.vector_memory.search_similar(
+                "agent_messages",  # Use the consistent entity type name
+                query_embedding,
+                limit=limit,
+                threshold=0.7,  # Adjust threshold as needed
+            )
+
+            if not similar_ids:
+                self.logger.debug("No similar message IDs found in vector memory.")
+                return []
+
+            # Fetch the actual messages from the main table
+            placeholders = ", ".join(f"${i+1}" for i in range(len(similar_ids)))
+            query = f"""
+            SELECT
+                message_id, timestamp, sender_id, receiver_id,
+                message_type, content, related_task_id, metadata
+            FROM agent_messages
+            WHERE message_id IN ({placeholders})
+            ORDER BY timestamp DESC -- Or potentially order by similarity if vector search returned scores
+            """
+
+            results = await self.db_client.fetch_all(query, *similar_ids)
+
+            messages = []
+            for row in results:
+                msg_data = {
+                    "message_id": str(row["message_id"]),
+                    "sender": str(row["sender_id"]),
+                    "receiver": str(row["receiver_id"]),
+                    "message_type": row["message_type"],
+                    "content": row["content"],
+                    "related_task": (
+                        str(row["related_task_id"]) if row["related_task_id"] else None
+                    ),
+                    "created_at": row["timestamp"],
+                    "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
+                }
+                messages.append(self.comm_protocol.parse_message(msg_data))
+
+            await self.log_activity(
+                activity_type="MessageSearch",
+                description=f"Searched messages similar to: {query_text[:100]}",
+                input_data={"query": query_text},
+                output_data={"result_count": len(messages)},
+            )
+            return messages
+
+        except Exception as e:
+            self.logger.error(
+                f"Error during message search for query '{query_text[:50]}...': {e}",
+                exc_info=True,
+            )
+            return []
+
+    async def log_activity(
+        self,
+        activity_type: str,
+        description: str,
+        thought_process: Optional[str] = None,
+        related_files: Optional[List[str]] = None,
+        input_data: Optional[Dict[str, Any]] = None,
+        output_data: Optional[Dict[str, Any]] = None,
+        decisions_made: Optional[Dict[str, Any]] = None,
+        execution_time_ms: Optional[int] = None,
+        related_task_id: Optional[str] = None,  # Added for better linking
+    ) -> Optional[str]:
+        """Log an activity performed by this agent to the database."""
+        if not self.db_client:
+            self.logger.warning(
+                "No database client provided, activity will not be logged."
+            )
+            return None
+
+        # Ensure DB pool is ready
+        try:
+            await self.db_client._ensure_initialized()
+        except Exception as e:
+            self.logger.error(
+                f"Failed to ensure DB initialization for logging activity: {e}",
+                exc_info=True,
+            )
+            return None
+
+        activity_id = str(uuid.uuid4())
+        timestamp = datetime.now()
+
+        query = """
+        INSERT INTO agent_activities (
+            activity_id, agent_id, timestamp, activity_type,
+            description, thought_process, related_files,
+            input_data, output_data, decisions_made, execution_time_ms,
+            related_task_id -- Added field
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING activity_id
+        """
+
+        try:
+            await self.db_client.execute(
+                query,
+                activity_id,
+                self.agent_id,
+                timestamp,
+                activity_type,
+                description,
+                thought_process,
+                related_files or [],
+                json.dumps(input_data or {}),
+                json.dumps(output_data or {}),
+                json.dumps(decisions_made or {}),
+                execution_time_ms,
+                related_task_id,  # Pass the new parameter
+            )
+
+            self.logger.info(
+                f"Activity logged: {activity_id} ({activity_type}) for agent {self.agent_id}"
+            )
+            return activity_id
+        except Exception as e:
+            self.logger.error(
+                f"Error logging activity {activity_type} for agent {self.agent_id}: {e}",
+                exc_info=True,
+            )
+            return None
+
+    async def think(
+        self, prompt: str, system_message: Optional[str] = None
+    ) -> Tuple[str, str]:
+        """Perform internal reasoning using the LLM provider and log the thought process."""
+        if not self.llm_provider:
+            error_msg = f"No LLM provider available for agent {self.agent_id}"
+            self.logger.error(error_msg)
+            # Log the error activity
+            await self.log_activity(
+                activity_type="ThinkingError",
+                description=error_msg,
+                input_data={"prompt": prompt[:1000]},  # Log truncated prompt
+            )
+            return (
+                "",
+                error_msg,
+            )  # Return empty string for thought and the error message
+
+        start_time = datetime.now()
+        thought = ""
+        error_msg = ""
+
+        try:
+            # For now, using generate_completion. Could adapt to use generate_chat_completion if needed.
+            thought = await self.llm_provider.generate_completion(
+                prompt=prompt,
+                system_message=system_message,
+                # Consider adding other parameters like max_tokens, temperature if needed
+            )
+
+        except Exception as e:
+            error_msg = f"Error during LLM generation: {str(e)}"
+            self.logger.error(f"{error_msg} for agent {self.agent_id}", exc_info=True)
+        finally:
+            execution_time = int(
+                (datetime.now() - start_time).total_seconds() * 1000
+            )  # In milliseconds
+
+            # Log the thinking activity, whether successful or not
+            activity_type = "ThinkingError" if error_msg else "Thinking"
+            description = (
+                f"Internal reasoning error"
+                if error_msg
+                else f"Internal reasoning on: {prompt[:100]}..."
+            )
+            output_data = (
+                {"error": error_msg}
+                if error_msg
+                else {"thought_preview": thought[:100] + "..."}
+            )
+
+            await self.log_activity(
+                activity_type=activity_type,
+                description=description,
+                thought_process=(
+                    thought if not error_msg else None
+                ),  # Only log full thought if successful
+                input_data={"prompt": prompt, "system_message": system_message},
+                output_data=output_data,
+                execution_time_ms=execution_time,
+            )
+
+        return (
+            thought,
+            error_msg,
+        )  # Return thought (empty if error) and error message (empty if success)
+
+    def __str__(self) -> str:
+        return f"{self.agent_type}(id={self.agent_id}, name={self.agent_name})"

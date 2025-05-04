@@ -1,3 +1,5 @@
+# .github/workflows/ci.yml
+
 name: CI Pipeline
 
 on:
@@ -7,16 +9,19 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  lint-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
 
     services:
       postgres:
-        image: ankane/pgvector:latest
+        image: ankane/pgvector:v0.7.0-pg16
         env:
           POSTGRES_DB: agent_team_test
           POSTGRES_USER: agent_user
-          POSTGRES_PASSWORD: agent_password
+          POSTGRES_PASSWORD: test_password # Use a fixed password for CI
         ports:
           - 5432:5432
         options: >-
@@ -38,26 +43,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Install linters
+          pip install ruff black isort
+          # Install test dependencies
+          pip install pytest pytest-cov pytest-asyncio
+          # Install application dependencies (using the placeholder method for now)
+          pip install \
+            fastapi==0.111.0 uvicorn[standard]==0.29.0 \
+            sqlalchemy[asyncio]==2.0.30 asyncpg==0.29.0 \
+            alembic==1.13.1 pgvector==0.2.5 \
+            celery==5.4.0 redis==5.0.4 \
+            pydantic==2.7.1 python-dotenv==1.0.1 \
+            httpx==0.27.0 google-cloud-aiplatform==1.53.0 \
+            GitPython==3.1.43
+          # Add command here to install from pyproject.toml/requirements.txt when available
 
-      - name: Initialize test database
+      - name: Lint with Ruff
         run: |
-          psql -h localhost -U agent_user -d agent_team_test -f infra/database/schema.sql
-        env:
-          PGPASSWORD: agent_password
+          ruff check .
 
-      - name: Run tests
+      - name: Format with Black and isort (Check only)
         run: |
-          pytest --cov=agents
+          black --check .
+          isort --check-only .
+
+      - name: Initialize Test Database
+        run: |
+          # Wait for PostgreSQL to be ready
+          sleep 5
+          # Connect and apply schema
+          psql -h 127.0.0.1 -p 5432 -U agent_user -d agent_team_test -f infra/docker/postgres/init.sql
         env:
-          DATABASE_URL: postgresql://agent_user:agent_password@localhost:5432/agent_team_test
-          REDIS_URL: redis://localhost:6379/0
+          PGPASSWORD: test_password
+
+      - name: Run Pytest
+        run: |
+          pytest --cov=agents --cov=app --cov-report=xml
+        env:
+          DATABASE_URL: postgresql+asyncpg://agent_user:test_password@127.0.0.1:5432/agent_team_test
+          REDIS_URL: redis://127.0.0.1:6379/0
+          # Set other necessary test environment variables here
+
+      # Optional: Upload coverage report
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }} # Set this secret in GitHub repo settings
+      #     file: ./coverage.xml
+      #     flags: pytest
+      #     name: codecov-umbrella

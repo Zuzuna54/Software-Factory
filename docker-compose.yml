@@ -1,14 +1,16 @@
+# docker-compose.yml
+
 version: "3.8"
 
 services:
   postgres:
-    image: ankane/pgvector:latest
+    image: pgvector/pgvector:pg16
     ports:
       - "5432:5432"
     environment:
       POSTGRES_DB: agent_team
       POSTGRES_USER: agent_user
-      POSTGRES_PASSWORD: agent_password
+      POSTGRES_PASSWORD: agent_password # Use .env for real secrets
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -17,6 +19,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -29,37 +32,53 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
-  python:
+  # Backend Service (FastAPI/Agents)
+  backend:
     build:
       context: .
       dockerfile: infra/docker/python/Dockerfile
     volumes:
-      - .:/app
+      - .:/app # Mount the entire project directory
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://agent_user:agent_password@postgres:5432/agent_team
+      - DATABASE_URL=postgresql+asyncpg://agent_user:agent_password@postgres:5432/agent_team # Use asyncpg driver
       - REDIS_URL=redis://redis:6379/0
-    command: sleep infinity
+      - PYTHONUNBUFFERED=1 # Ensures logs appear immediately
+      # Add other necessary ENV VARS (e.g., LLM API keys from .env)
+    # Example command (adjust as needed when app/main.py exists):
+    # command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: tail -f /dev/null # Keep container running for exec
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
 
-  node:
+  # Frontend Service (Next.js)
+  frontend:
     build:
       context: .
       dockerfile: infra/docker/node/Dockerfile
+      args:
+        WORKDIR: /app/frontend # Set workdir for frontend
     volumes:
-      - .:/app
+      - ./frontend:/app/frontend # Mount only the frontend directory
     ports:
       - "3000:3000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      - backend # Optional dependency if frontend needs backend at build/start
     environment:
-      - DATABASE_URL=postgresql://agent_user:agent_password@postgres:5432/agent_team
-    command: sleep infinity
+      - NEXT_PUBLIC_API_URL=http://backend:8000 # Example ENV VAR
+      # Add other necessary ENV VARS
+    working_dir: /app/frontend
+    # Example command (adjust when frontend/package.json exists):
+    # command: pnpm dev
+    command: tail -f /dev/null # Keep container running for exec
+    restart: unless-stopped
 
 volumes:
   postgres_data:

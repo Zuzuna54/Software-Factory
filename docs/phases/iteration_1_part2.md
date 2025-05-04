@@ -178,7 +178,7 @@ from typing import Dict, List, Any, Optional
 
 from ..base_agent import BaseAgent
 from ..db.postgres import PostgresClient
-from ..llm.anthropic_provider import AnthropicProvider
+from ..llm.vertex_gemini_provider import VertexGeminiProvider
 from ..memory.vector_memory import VectorMemory
 
 # Set up logging
@@ -209,7 +209,7 @@ class AgentCLI:
         await self.db_client.initialize()
 
         # Initialize LLM provider
-        self.llm_provider = AnthropicProvider()
+        self.llm_provider = VertexGeminiProvider()
 
         # Initialize vector memory
         self.vector_memory = VectorMemory(self.db_client)
@@ -723,7 +723,7 @@ import uuid
 from typing import Dict, Any, List, Generator, AsyncGenerator
 
 from ..db.postgres import PostgresClient
-from ..llm.anthropic_provider import AnthropicProvider
+from ..llm.vertex_gemini_provider import VertexGeminiProvider
 from ..memory.vector_memory import VectorMemory
 from ..base_agent import BaseAgent
 
@@ -758,7 +758,7 @@ async def db_client() -> AsyncGenerator[PostgresClient, None]:
     await client.close()
 
 @pytest.fixture(scope="session")
-def llm_provider_mock() -> AnthropicProvider:
+def llm_provider_mock() -> VertexGeminiProvider:
     """Create a mock LLM provider for tests."""
     # For tests, we'll use a mock provider that returns predetermined responses
     class MockLLMProvider:

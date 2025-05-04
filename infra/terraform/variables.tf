@@ -1,6 +1,9 @@
+# infra/terraform/variables.tf
+
 variable "project_id" {
   description = "The GCP project ID"
   type        = string
+  # No default, should be provided via environment or tfvars
 }
 
 variable "region" {
@@ -16,13 +19,14 @@ variable "zone" {
 }
 
 variable "db_tier" {
-  description = "The database machine tier"
+  description = "The database machine tier (e.g., db-f1-micro, db-g1-small)"
   type        = string
   default     = "db-f1-micro"
 }
 
 variable "db_password" {
-  description = "The database password"
+  description = "The database password for the agent_user"
   type        = string
   sensitive   = true
+  # No default, should be provided securely
 } 

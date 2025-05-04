@@ -1,14 +1,29 @@
+# infra/docker/node/Dockerfile
+
 FROM node:20-alpine
 
-WORKDIR /app
+# Argument to set working directory, defaults to /app
+ARG WORKDIR=/app
+WORKDIR ${WORKDIR}
 
+# Install system dependencies
 RUN apk add --no-cache git
 
-RUN npm install -g \
-    next@14 \
-    typescript@5.5 \
-    eslint@8 \
-    prettier@3
+# Install pnpm globally (as per project overview)
+RUN npm install -g pnpm
 
-ENV NODE_PATH=/app/node_modules
-ENV PATH=/app/node_modules/.bin:$PATH 
+# Copy package management files first for layer caching
+COPY frontend/package.json frontend/pnpm-lock.yaml* ${WORKDIR}/
+
+# Install dependencies using pnpm
+RUN pnpm install --frozen-lockfile
+
+# Copy the rest of the frontend application code
+COPY frontend/ ${WORKDIR}/
+
+# Set environment variables
+ENV NODE_ENV=development
+
+# Default command (can be overridden in docker-compose.yml)
+# Keeps the container running for exec or development overrides
+CMD ["tail", "-f", "/dev/null"] 

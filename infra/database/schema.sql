@@ -1,3 +1,5 @@
+-- infra/database/schema.sql
+
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgvector";
@@ -82,7 +84,7 @@ CREATE TABLE meetings (
     meeting_type VARCHAR(50) NOT NULL, -- Planning, StandUp, Review, Retrospective, Brainstorming
     start_time TIMESTAMP NOT NULL DEFAULT NOW(),
     end_time TIMESTAMP,
-    participants UUID[] REFERENCES agents(agent_id),
+    participants UUID[], -- This should reference agents(agent_id) but array foreign keys are complex, handle in application logic or triggers
     summary TEXT,
     decisions JSONB,
     action_items JSONB
@@ -93,7 +95,7 @@ CREATE TABLE meeting_conversations (
     meeting_id UUID REFERENCES meetings(meeting_id),
     sequence_number INTEGER NOT NULL, -- Order in conversation
     timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-    speaker_id UUID REFERENCES agents(agent_id),
+    speaker_id UUID, -- This should reference agents(agent_id)
     message TEXT NOT NULL,
     message_type VARCHAR(50), -- Question, Answer, Proposal, etc.
     context JSONB -- Reference to what is being discussed
@@ -106,4 +108,10 @@ CREATE INDEX idx_agent_activities_agent ON agent_activities(agent_id);
 CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to);
 CREATE INDEX idx_tasks_status ON tasks(status);
 CREATE INDEX idx_artifacts_type ON artifacts(artifact_type);
-CREATE INDEX idx_artifacts_creator ON artifacts(created_by); 
+CREATE INDEX idx_artifacts_creator ON artifacts(created_by);
+
+-- Additional helpful indexes
+CREATE INDEX idx_agent_messages_timestamp ON agent_messages(timestamp DESC);
+CREATE INDEX idx_agent_activities_timestamp ON agent_activities(timestamp DESC);
+CREATE INDEX idx_tasks_created_at ON tasks(created_at DESC);
+CREATE INDEX idx_meeting_conversations_meeting_id ON meeting_conversations(meeting_id, sequence_number); 
