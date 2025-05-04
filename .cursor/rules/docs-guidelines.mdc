@@ -1,0 +1,36 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Documentation & Diagram Standards
+alwaysApply: true
+---
+
+**Objective**  
+Keep the project’s documentation **complete, current, and neatly organised** under the `docs/` tree, with supporting Mermaid diagrams in `docs/diagrams/…`.
+
+**Mandatory patterns**
+
+1. **File location**  
+   - Every Markdown doc lives under an appropriate sub‑folder of `docs/` (`docs/api/`, `docs/architecture/`, etc.).  
+   - If the sub‑folder does not exist, create it in the same commit.  
+2. **Diagrams**  
+   - Supporting diagrams must be Mermaid (`.mmd`) files stored under `docs/diagrams/<same‑subfolder>/`.  
+   - Each `.mmd` file must have the same stem as the doc it supports (e.g. `docs/api/auth.md` ↔ `docs/diagrams/api/auth.mmd`).  
+3. **Update before add**  
+   - Before writing new docs, **scan the entire `docs/` directory** (use `search_memory()` on filenames & headings).  
+   - If related content exists, update or extend that file instead of creating a duplicate.  
+4. **Cross‑linking**  
+   - Use relative Markdown links (`../api/auth.md`) between docs to avoid broken links on GitHub.  
+5. **Commit hygiene**  
+   - Commit message must start with `docs:` or `chore(docs):` and list updated files.  
+   - If creating a new diagram, mention its filename.
+
+**Verification checklist**
+
+- [ ] Existing docs reviewed & updated where relevant.  
+- [ ] New Markdown in correct `docs/<folder>/`.  
+- [ ] Matching Mermaid diagram in `docs/diagrams/<folder>/`.  
+- [ ] All Markdown links resolve when rendered in GitHub.  
