@@ -17,7 +17,7 @@ from ..specialized.scrum_master import ScrumMasterAgent
 from ..llm.vertex_gemini_provider import (
     VertexGeminiProvider,
 )  # Using VertexGeminiProvider
-from ..memory.vector_memory import VectorMemory
+from ..memory.vector_memory import EnhancedVectorMemory
 from ..communication.protocol import (
     CommunicationProtocol,
 )  # Need protocol for Scrum Master messages
@@ -55,7 +55,7 @@ async def _initialize_components() -> Dict[str, Any]:
     # Requires GOOGLE_APPLICATION_CREDENTIALS and potentially other env vars
     llm_provider = VertexGeminiProvider()
 
-    vector_memory = VectorMemory(db_client=db_client, llm_provider=llm_provider)
+    vector_memory = EnhancedVectorMemory(db_client=db_client)
     await vector_memory.initialize()
 
     comm_protocol = CommunicationProtocol()

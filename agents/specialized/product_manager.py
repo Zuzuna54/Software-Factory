@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from uuid import uuid4
 
 from ..base_agent import BaseAgent
-from ..memory.vector_memory import VectorMemory
+from ..memory.vector_memory import EnhancedVectorMemory
 
 
 class ProductManagerAgent(BaseAgent):
@@ -30,6 +30,7 @@ class ProductManagerAgent(BaseAgent):
             **kwargs,
         )
         self.logger = logging.getLogger(f"agent.pm.{self.agent_id}")
+        self.vector_memory: Optional[EnhancedVectorMemory] = self.vector_memory
 
     async def analyze_requirements(self, project_description: str) -> Dict[str, Any]:
         """

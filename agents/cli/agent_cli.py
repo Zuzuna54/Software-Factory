@@ -8,31 +8,32 @@ import os
 import sys
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+import uuid  # Import uuid
 
-# Adjust imports based on actual project structure
-# Assumes the CLI is run from the project root or the agents package is installed
+# Local imports (adjust as needed)
 try:
     from ..base_agent import BaseAgent
     from ..db.postgres import PostgresClient
     from ..llm.vertex_gemini_provider import VertexGeminiProvider
-    from ..memory.vector_memory import VectorMemory
+    from ..memory.vector_memory import EnhancedVectorMemory  # Use EnhancedVectorMemory
     from ..communication.protocol import (
         CommunicationProtocol,
         AgentMessage,
         MessageType,
     )
+    from ..factory import AgentFactory  # Import AgentFactory
 except ImportError:
-    # Fallback for running script directly during development
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
     from agents.base_agent import BaseAgent
     from agents.db.postgres import PostgresClient
     from agents.llm.vertex_gemini_provider import VertexGeminiProvider
-    from agents.memory.vector_memory import VectorMemory
+    from agents.memory.vector_memory import EnhancedVectorMemory
     from agents.communication.protocol import (
         CommunicationProtocol,
         AgentMessage,
         MessageType,
     )
+    from agents.factory import AgentFactory
 
 # Set up logging for the CLI
 log_file = "agent_cli.log"
@@ -54,11 +55,12 @@ class AgentCLI:
     def __init__(self):
         self.db_client: Optional[PostgresClient] = None
         self.llm_provider: Optional[VertexGeminiProvider] = None
-        self.vector_memory: Optional[VectorMemory] = None
-        self.comm_protocol: CommunicationProtocol = (
-            CommunicationProtocol()
-        )  # Use the protocol helper
-        self.agents: Dict[str, BaseAgent] = {}  # In-memory store for agent instances
+        self.vector_memory: Optional[EnhancedVectorMemory] = None
+        self.comm_protocol: CommunicationProtocol = CommunicationProtocol()
+        self.agent_factory: Optional[AgentFactory] = (
+            None  # Add factory instance variable
+        )
+        # self.agents: Dict[str, BaseAgent] = {} # No longer needed to track agents in memory
         self._initialized = False
 
     async def initialize(self) -> None:
@@ -68,21 +70,28 @@ class AgentCLI:
         logger.info("Initializing CLI services...")
         try:
             # Initialize database client
-            self.db_client = PostgresClient()  # Reads URL from ENV or uses default
+            self.db_client = PostgresClient()
             await self.db_client.initialize()
 
-            # Initialize LLM provider (ensure GOOGLE_CLOUD_PROJECT is set in env)
+            # Initialize LLM provider
             self.llm_provider = VertexGeminiProvider()
 
             # Initialize vector memory
-            self.vector_memory = VectorMemory(self.db_client)
+            self.vector_memory = EnhancedVectorMemory(self.db_client)
             await self.vector_memory.initialize()
+
+            # Initialize Agent Factory with shared dependencies
+            self.agent_factory = AgentFactory(
+                llm_provider=self.llm_provider,
+                db_client=self.db_client,
+                vector_memory=self.vector_memory,
+                comm_protocol=self.comm_protocol,
+            )
 
             self._initialized = True
             logger.info("CLI services initialized successfully.")
         except Exception as e:
             logger.error(f"CLI Initialization failed: {e}", exc_info=True)
-            # Exit or handle? For a CLI, exiting might be appropriate.
             sys.exit(1)
 
     async def _ensure_initialized(self):
@@ -94,8 +103,12 @@ class AgentCLI:
     async def create_agent(
         self, agent_type: str, agent_name: str, capabilities_json: Optional[str] = None
     ) -> Optional[str]:
-        """Create a new agent instance and register it."""
+        """Create a new agent instance, register it in DB, and return its ID."""
         await self._ensure_initialized()
+
+        if not self.agent_factory:
+            logger.error("Agent Factory is not initialized.")
+            return None
 
         capabilities = {}
         if capabilities_json:
@@ -105,34 +118,55 @@ class AgentCLI:
                 logger.error(f"Invalid JSON format for capabilities: {e}")
                 return None
 
-        # For now, we only instantiate BaseAgent. Later, use a factory pattern.
-        # TODO: Implement agent factory based on agent_type
-        if agent_type != "base":
-            logger.warning(
-                f"Only 'base' agent type supported currently. Creating BaseAgent."
-            )
-            agent_type = "base"  # Force base type for now
-
-        agent = BaseAgent(
+        try:
+            # 1. Create agent instance using the factory
+            # The factory now handles passing dependencies
+            agent_instance = self.agent_factory.create_agent(
             agent_type=agent_type,
             agent_name=agent_name,
-            llm_provider=self.llm_provider,
-            db_client=self.db_client,
-            vector_memory=self.vector_memory,
-            comm_protocol=self.comm_protocol,  # Pass protocol instance
             capabilities=capabilities,
-        )
+                # agent_id is generated by default in BaseAgent constructor
+            )
 
-        # BaseAgent constructor now handles registration via asyncio task
-        # Wait a moment to allow registration task to potentially complete
-        await asyncio.sleep(0.1)
+            # 2. Explicitly register the agent in the database
+            # (Overwrites/confirms registration potentially started by BaseAgent.__init__)
+            query_insert = """
+            INSERT INTO agents (agent_id, agent_type, agent_name, capabilities, active)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (agent_id) DO UPDATE SET
+                agent_type = EXCLUDED.agent_type,
+                agent_name = EXCLUDED.agent_name,
+                capabilities = EXCLUDED.capabilities,
+                active = EXCLUDED.active
+            """
+            await self.db_client.execute(
+                query_insert,
+                agent_instance.agent_id,
+                agent_instance.agent_type,
+                agent_instance.agent_name,
+                json.dumps(agent_instance.capabilities),
+                True,  # Default to active
+            )
 
-        self.agents[agent.agent_id] = agent  # Keep track of the instance locally
         logger.info(
-            f"Created agent: {agent_type} - {agent_name} (ID: {agent.agent_id})"
+                f"Agent {agent_instance.agent_id} ({agent_instance.agent_name}) created and registered/updated in DB."
         )
-        print(f"Agent Created: ID = {agent.agent_id}")
-        return agent.agent_id
+            print(f"Agent Created: ID = {agent_instance.agent_id}")
+            return agent_instance.agent_id
+
+        except ValueError as e:
+            # Handle unknown agent type from factory
+            logger.error(f"Agent creation failed: {e}")
+            print(f"Error: {e}")
+            return None
+        except Exception as e:
+            # Handle other potential errors (DB connection, etc.)
+            logger.error(
+                f"Unexpected error creating agent {agent_name} of type {agent_type}: {e}",
+                exc_info=True,
+            )
+            print(f"Error: Could not create agent. Check logs.")
+            return None
 
     async def list_agents(self) -> List[Dict[str, Any]]:
         """List all agents registered in the database."""
@@ -169,6 +203,7 @@ class AgentCLI:
             logger.error(f"Failed to list agents from database: {e}", exc_info=True)
             return []
 
+    # --- Task 3: Fix send_message ---
     async def send_message(
         self,
         sender_id: str,
@@ -179,29 +214,35 @@ class AgentCLI:
         task_id: Optional[str] = None,
         metadata_json: Optional[str] = None,
     ) -> Optional[str]:
-        """Send a message from one agent to another via the protocol."""
+        """Send a message from one agent to another by logging it directly to DB."""
         await self._ensure_initialized()
 
-        # Find the sending agent instance (if created via this CLI session)
-        # Note: This only works for agents created in the current CLI session.
-        # A more robust CLI might load agent details from DB instead of requiring local instance.
-        sender_agent = self.agents.get(sender_id)
-        if not sender_agent:
-            logger.error(
-                f"Sender agent {sender_id} not found in this CLI session. Cannot send message."
-            )
-            print(f"Error: Sender agent {sender_id} not managed by this CLI session.")
+        # Validate sender_id exists in the database
+        sender_exists = await self._check_agent_exists(sender_id)
+        if not sender_exists:
+            logger.error(f"Sender agent {sender_id} not found in database.")
+            print(f"Error: Sender agent ID {sender_id} does not exist.")
             return None
 
+        # Validate receiver_id exists in the database
+        receiver_exists = await self._check_agent_exists(receiver_id)
+        if not receiver_exists:
+            logger.error(f"Receiver agent {receiver_id} not found in database.")
+            print(f"Error: Receiver agent ID {receiver_id} does not exist.")
+            return None
+
+        # Validate message type
         try:
             message_type = MessageType(message_type_str.upper())
         except ValueError:
+            valid_types = [t.value for t in MessageType]
             logger.error(f"Invalid message type: {message_type_str}")
             print(
-                f"Error: Invalid message type '{message_type_str}'. Valid types: {[t.value for t in MessageType]}"
+                f"Error: Invalid message type '{message_type_str}'. Valid: {valid_types}"
             )
             return None
 
+        # Parse metadata JSON
         metadata = {}
         if metadata_json:
             try:
@@ -211,77 +252,196 @@ class AgentCLI:
                 print(f"Error: Invalid JSON for metadata: {e}")
                 return None
 
-        # Use the CommunicationProtocol to create the message object
-        message = self.comm_protocol._create_message(  # Using internal helper for flexibility here
-            sender=sender_id,
-            receiver=receiver_id,
-            message_type=message_type,
-            content=content,
-            conversation_id=conv_id,
-            related_task=task_id,
-            metadata=metadata,
-        )
+        # Create the message object using the protocol
+        # Generate a new UUID for the message
+        message_id = str(uuid.uuid4())
+        created_at = datetime.now()
 
-        # Use the agent's send_message method
-        message_id = await sender_agent.send_message(message)
+        # Store message directly in the database
+        query_insert_msg = """
+        INSERT INTO agent_messages (
+            message_id, timestamp, sender_id, receiver_id,
+            message_type, content, related_task_id,
+            metadata
+            -- parent_message_id - currently not handled by CLI
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING message_id
+        """
 
-        if message_id:
-            logger.info(f"Message {message_id} sent: {sender_id} -> {receiver_id}")
-            print(f"Message Sent: ID = {message_id}")
+        try:
+            await self.db_client.execute(
+                query_insert_msg,
+                message_id,
+                created_at,
+                sender_id,
+                receiver_id,
+                message_type.value,
+                content,
+                task_id,
+                json.dumps(metadata or {}),
+            )
+            logger.info(
+                f"Message {message_id} logged to DB: {sender_id} -> {receiver_id}"
+            )
+
+            # Store vector embedding for the message (if components available)
+            await self._store_message_embedding(
+                message_id,
+                content,
+                sender_id,
+                receiver_id,
+                message_type.value,
+                task_id,
+                metadata,
+            )
+
+            print(f"Message Sent (Logged to DB): ID = {message_id}")
             return message_id
-        else:
-            logger.error(f"Failed to send message from {sender_id} to {receiver_id}")
-            print("Error: Failed to send message.")
+
+        except Exception as e:
+            logger.error(
+                f"Failed to log message to DB from {sender_id} to {receiver_id}: {e}",
+                exc_info=True,
+            )
+            print("Error: Failed to send/log message. Check logs.")
             return None
+
+    async def _check_agent_exists(self, agent_id: str) -> bool:
+        """Check if an agent ID exists in the database."""
+        query = "SELECT 1 FROM agents WHERE agent_id = $1"
+        result = await self.db_client.fetch_one(query, agent_id)
+        return result is not None
+
+    async def _store_message_embedding(
+        self,
+        message_id: str,
+        content: str,
+        sender_id: str,
+        receiver_id: str,
+        msg_type: str,
+        task_id: Optional[str],
+        metadata: Dict[str, Any],
+    ):
+        """Generate and store vector embedding for a message."""
+        if self.vector_memory and self.llm_provider:
+            try:
+                embedding = await self.llm_provider.generate_embeddings(content)
+                if embedding:
+                    await self.vector_memory.store_entity(
+                        entity_type="AgentMessage",
+                        entity_id=message_id,
+                        content=content,
+                        embedding=embedding,
+                        metadata={
+                            "sender": sender_id,
+                            "receiver": receiver_id,
+                            "type": msg_type,
+                            "task_id": task_id,
+                            **(metadata or {}),
+                        },
+                        tags=["communication", msg_type.lower()],
+                    )
+                    logger.debug(f"Stored embedding for message {message_id}")
+                else:
+                    logger.warning(
+                        f"Failed to generate embedding for message {message_id}"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Failed to store embedding for message {message_id}: {e}",
+                    exc_info=True,
+                )
+        else:
+            logger.debug(
+                "Skipping message embedding: Vector Memory or LLM Provider not available."
+            )
 
     async def get_agent_messages(
         self, agent_id: str, limit: int = 10
     ) -> List[Dict[str, Any]]:
         """Get recent messages received by the specified agent."""
         await self._ensure_initialized()
+        if not self.db_client:
+            logger.error("Database client not available.")
+            return []
 
-        # Find agent instance if managed by CLI, otherwise create a temporary one to use receive_messages
-        agent = self.agents.get(agent_id)
-        if not agent:
-            # Create a temporary BaseAgent instance just to use the receive_messages method
-            # This allows checking messages for agents not created in this session
-            logger.warning(
-                f"Agent {agent_id} not in CLI memory, creating temporary instance to fetch messages."
+        # Fetch directly from DB instead of using agent instance
+        query = """
+        SELECT
+            message_id, timestamp, sender_id, receiver_id,
+            message_type, content, related_task_id, metadata
+        FROM agent_messages
+        WHERE receiver_id = $1
+        ORDER BY timestamp DESC
+        LIMIT $2
+        """
+        try:
+            results = await self.db_client.fetch_all(query, agent_id, limit)
+            messages = []
+            for row in results:
+                messages.append(
+                    {
+                        "message_id": str(row["message_id"]),
+                        "timestamp": row["timestamp"].isoformat(),
+                        "sender_id": str(row["sender_id"]),
+                        "receiver_id": str(row["receiver_id"]),
+                        "message_type": row["message_type"],
+                        "content": row["content"],
+                        "related_task_id": (
+                            str(row["related_task_id"])
+                            if row["related_task_id"]
+                            else None
+                        ),
+                        "metadata": (
+                            json.loads(row["metadata"]) if row["metadata"] else {}
+                        ),
+                    }
+                )
+            return messages
+        except Exception as e:
+            logger.error(
+                f"Failed to fetch messages for agent {agent_id}: {e}", exc_info=True
             )
-            agent = BaseAgent(
-                agent_id=agent_id,
-                db_client=self.db_client,
-                comm_protocol=self.comm_protocol,
-                # No LLM/Memory needed just to receive
-            )
-            # We don't store this temp agent in self.agents
-
-        messages = await agent.receive_messages(limit=limit)
-        # Convert AgentMessage objects back to dicts for printing
-        return [msg.to_dict() for msg in messages]
+            return []
 
     async def search_knowledge(
         self, query: str, limit: int = 5
     ) -> List[Dict[str, Any]]:
         """Search for knowledge (currently messages) related to the query using vector search."""
         await self._ensure_initialized()
-        if not self.vector_memory or not self.llm_provider or not self.db_client:
-            logger.error(
-                "Required components (DB, LLM, Memory) not available for search."
-            )
+        if not self.vector_memory or not self.llm_provider:
+            logger.error("Required components (LLM, Memory) not available for search.")
             return []
 
-        # Use a temporary BaseAgent instance to perform the search
-        # This avoids needing a specific agent instance just for searching
-        temp_search_agent = BaseAgent(
-            llm_provider=self.llm_provider,
-            db_client=self.db_client,
-            vector_memory=self.vector_memory,
-            comm_protocol=self.comm_protocol,
-        )
+        try:
+            query_embedding = await self.llm_provider.generate_embeddings(query)
+            if not query_embedding:
+                logger.error("Failed to generate query embedding.")
+                return []
 
-        similar_messages = await temp_search_agent.search_messages(query, limit)
-        return [msg.to_dict() for msg in similar_messages]
+            # Directly use vector_memory search
+            similar_results = await self.vector_memory.search_similar(
+                query_embedding=query_embedding,
+                entity_types=["AgentMessage"],  # Example: search only messages
+                limit=limit,
+                # Add threshold if desired
+            )
+
+            # Format results (similar_results format depends on vector_memory implementation)
+            # Assuming it returns a list of dicts with 'metadata' and 'similarity' keys
+            formatted_results = []
+            for res in similar_results:
+                # Add similarity score if available
+                res_data = res.get("metadata", {})
+                res_data["similarity_score"] = res.get("similarity")
+                res_data["entity_id"] = res.get("entity_id")  # Include the message ID
+                formatted_results.append(res_data)
+
+            return formatted_results
+
+        except Exception as e:
+            logger.error(f"Knowledge search failed: {e}", exc_info=True)
+            return []
 
     async def get_agent_activities(
         self, agent_id: str, activity_type: Optional[str] = None, limit: int = 10
@@ -297,17 +457,15 @@ class AgentCLI:
         param_idx = 2
 
         if activity_type:
-            conditions.append(
-                f"activity_type ILIKE ${param_idx}"
-            )  # Use ILIKE for case-insensitivity
-            params.append(f"%{activity_type}%")  # Allow partial matching
+            conditions.append(f"activity_type ILIKE ${param_idx}")
+            params.append(f"%{activity_type}%")
             param_idx += 1
 
         query = f"""
         SELECT
             activity_id, timestamp, activity_type,
             description, thought_process, input_data, output_data,
-            decisions_made, execution_time_ms, related_task_id
+            decisions_made, execution_time_ms, related_task_id, related_files
         FROM agent_activities
         WHERE {" AND ".join(conditions)}
         ORDER BY timestamp DESC
@@ -323,6 +481,7 @@ class AgentCLI:
                     {
                         "activity_id": str(row["activity_id"]),
                         "timestamp": row["timestamp"].isoformat(),
+                        "agent_id": agent_id,  # Add agent_id for clarity
                         "activity_type": row["activity_type"],
                         "description": row["description"],
                         "thought_process": row["thought_process"],
@@ -343,6 +502,7 @@ class AgentCLI:
                             if row["related_task_id"]
                             else None
                         ),
+                        "related_files": row["related_files"] or [],
                     }
                 )
             return activities
@@ -375,81 +535,89 @@ async def run_cli():
 
     # agent create
     parser_agent_create = agent_subparsers.add_parser(
-        "create", help="Create a new agent"
+        "create", help="Create a new agent and register in DB"
     )
     parser_agent_create.add_argument(
-        "--type", type=str, default="base", help="Type of agent (default: base)"
+        "--type",
+        type=str,
+        required=True,  # Make type required
+        help=f"Type of agent. Known: {list(AGENT_TYPE_MAP.keys())}",
     )
     parser_agent_create.add_argument(
         "--name", type=str, required=True, help="Name for the new agent"
     )
     parser_agent_create.add_argument(
-        "--capabilities", type=str, help="JSON string of agent capabilities"
+        "--capabilities",
+        type=str,
+        help="JSON string of agent capabilities, e.g., '{\"can_code\": true}'",
     )
 
     # agent list
-    parser_agent_list = agent_subparsers.add_parser(
-        "list", help="List registered agents"
-    )
+    agent_subparsers.add_parser("list", help="List registered agents from DB")
 
     # agent activities
     parser_agent_activities = agent_subparsers.add_parser(
-        "activities", help="Show agent activities"
+        "activities", help="Show agent activities from DB"
     )
     parser_agent_activities.add_argument(
         "--id", type=str, required=True, help="Agent ID"
     )
     parser_agent_activities.add_argument(
-        "--type",
-        type=str,
-        help="Filter by activity type (case-insensitive, partial match)",
+        "--type", type=str, help="Filter by activity type (e.g., CodeGeneration)"
     )
     parser_agent_activities.add_argument(
-        "--limit", type=int, default=10, help="Max number of activities to show"
+        "--limit", type=int, default=10, help="Maximum activities to show (default: 10)"
     )
 
     # --- Message Commands ---
-    parser_msg = subparsers.add_parser("message", help="Manage messages")
-    msg_subparsers = parser_msg.add_subparsers(
+    parser_message = subparsers.add_parser("message", help="Manage messages")
+    message_subparsers = parser_message.add_subparsers(
         dest="message_command", help="Message actions", required=True
     )
 
     # message send
-    parser_msg_send = msg_subparsers.add_parser("send", help="Send a message")
-    parser_msg_send.add_argument(
-        "--sender",
+    parser_message_send = message_subparsers.add_parser(
+        "send", help="Send a message (logs directly to DB)"
+    )
+    parser_message_send.add_argument(
+        "--sender", type=str, required=True, help="Sender Agent ID (must exist in DB)"
+    )
+    parser_message_send.add_argument(
+        "--receiver",
         type=str,
         required=True,
-        help="Sender agent ID (must be managed by this CLI session)",
+        help="Receiver Agent ID (must exist in DB)",
     )
-    parser_msg_send.add_argument(
-        "--receiver", type=str, required=True, help="Receiver agent ID"
-    )
-    parser_msg_send.add_argument(
+    parser_message_send.add_argument(
         "--content", type=str, required=True, help="Message content"
     )
-    parser_msg_send.add_argument(
+    parser_message_send.add_argument(
         "--type",
         type=str,
         default="INFORM",
-        help=f"Message type (e.g., {', '.join([t.value for t in MessageType])})",
-        choices=[t.value for t in MessageType],
+        help=f"Message type (default: INFORM). Valid: {[t.value for t in MessageType]}",
     )
-    parser_msg_send.add_argument("--conv-id", type=str, help="Optional conversation ID")
-    parser_msg_send.add_argument("--task-id", type=str, help="Optional related task ID")
-    parser_msg_send.add_argument(
-        "--metadata", type=str, help="Optional JSON string for metadata"
+    parser_message_send.add_argument(
+        "--conv_id", type=str, help="Optional conversation UUID"
+    )
+    parser_message_send.add_argument(
+        "--task_id", type=str, help="Optional related task UUID"
+    )
+    parser_message_send.add_argument(
+        "--metadata",
+        type=str,
+        help='Optional JSON string for metadata, e.g., \'{"priority": "high"}\'',
     )
 
-    # message receive
-    parser_msg_receive = msg_subparsers.add_parser(
-        "receive", help="Receive messages for an agent"
+    # message show
+    parser_message_show = message_subparsers.add_parser(
+        "show", help="Show messages received by an agent from DB"
     )
-    parser_msg_receive.add_argument(
-        "--id", type=str, required=True, help="Agent ID to receive messages for"
+    parser_message_show.add_argument(
+        "--id", type=str, required=True, help="Agent ID whose messages to show"
     )
-    parser_msg_receive.add_argument(
-        "--limit", type=int, default=10, help="Max number of messages to show"
+    parser_message_show.add_argument(
+        "--limit", type=int, default=10, help="Maximum messages to show (default: 10)"
     )
 
     # --- Knowledge Commands ---
@@ -462,69 +630,76 @@ async def run_cli():
 
     # knowledge search
     parser_knowledge_search = knowledge_subparsers.add_parser(
-        "search", help="Search knowledge (currently messages)"
+        "search", help="Search knowledge base (messages) via vector similarity"
     )
     parser_knowledge_search.add_argument(
-        "--query", type=str, required=True, help="Search query text"
+        "--query", type=str, required=True, help="Search query string"
     )
     parser_knowledge_search.add_argument(
-        "--limit", type=int, default=5, help="Max number of results"
+        "--limit", type=int, default=5, help="Maximum results (default: 5)"
     )
 
-    # --- Parse args ---
     args = parser.parse_args()
-
-    # --- Execute command ---
     cli = AgentCLI()
-    try:
-        await cli.initialize()
 
+    try:
         if args.command == "agent":
             if args.agent_command == "create":
-                await cli.create_agent(args.type, args.name, args.capabilities)
-            elif args.agent_command == "list":
-                agents = await cli.list_agents()
-                print(json.dumps(agents, indent=2))
-            elif args.agent_command == "activities":
-                activities = await cli.get_agent_activities(
-                    args.id, args.type, args.limit
+                result = await cli.create_agent(
+                    agent_type=args.type,
+                    agent_name=args.name,
+                    capabilities_json=args.capabilities,
                 )
-                print(json.dumps(activities, indent=2))
+            elif args.agent_command == "list":
+                result = await cli.list_agents()
+                print(json.dumps(result, indent=2))
+            elif args.agent_command == "activities":
+                result = await cli.get_agent_activities(
+                    agent_id=args.id, activity_type=args.type, limit=args.limit
+                )
+                print(json.dumps(result, indent=2))
 
         elif args.command == "message":
             if args.message_command == "send":
-                await cli.send_message(
-                    args.sender,
-                    args.receiver,
-                    args.content,
-                    args.type,
-                    args.conv_id,
-                    args.task_id,
-                    args.metadata,
+                result = await cli.send_message(
+                    sender_id=args.sender,
+                    receiver_id=args.receiver,
+                    content=args.content,
+                    message_type_str=args.type,
+                    conv_id=args.conv_id,
+                    task_id=args.task_id,
+                    metadata_json=args.metadata,
                 )
-            elif args.message_command == "receive":
-                messages = await cli.get_agent_messages(args.id, args.limit)
-                print(json.dumps(messages, indent=2))
+            elif args.message_command == "show":
+                result = await cli.get_agent_messages(
+                    agent_id=args.id, limit=args.limit
+                )
+                print(json.dumps(result, indent=2))
 
         elif args.command == "knowledge":
             if args.knowledge_command == "search":
-                results = await cli.search_knowledge(args.query, args.limit)
-                print(json.dumps(results, indent=2))
+                result = await cli.search_knowledge(query=args.query, limit=args.limit)
+                print(json.dumps(result, indent=2))
 
     except Exception as e:
         logger.error(f"CLI command failed: {e}", exc_info=True)
-        print(f"Error: {e}")
+        print(f"Error: An unexpected error occurred. Check logs in {log_file}")
     finally:
         await cli.close()
 
 
 def main():
-    if __name__ == "__main__":
+    # Add check for Python version if needed
+    if sys.version_info < (3, 8):
+        sys.exit("Python 3.8 or higher is required.")
+
+    # Setup asyncio loop
         try:
             asyncio.run(run_cli())
         except KeyboardInterrupt:
-            print("\nCLI interrupted by user.")
-            sys.exit(0)
+        logger.info("CLI terminated by user.")
+        print("\nCLI terminated.")
 
 
+if __name__ == "__main__":
 main()

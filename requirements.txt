@@ -18,7 +18,7 @@ psycopg2-binary==2.9.10 # Often useful for tooling like Alembic, even with async
 python-socketio[asyncio]==5.5.2
 websockets==11.0.3
 socketio==0.2.1
-
+dj-database-url==2.3.0
 
 # Testing & Linting Dependencies
 pytest==8.2.0

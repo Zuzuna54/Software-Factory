@@ -20,7 +20,7 @@ from .communication.protocol import (
     MessageType,
 )  # Added communication protocol
 from agents.metrics.collector import metrics_collector  # Import metrics collector
-from app.main import emit_event  # Import event emitter
+from app.events import emit_event  # Import event emitter from new location
 
 logger_agent = logging.getLogger(__name__)  # Renamed logger to avoid conflict
 
