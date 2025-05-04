@@ -12,14 +12,18 @@ pydantic==2.8.2
 python-dotenv==1.0.1
 httpx==0.27.0
 google-cloud-aiplatform==1.53.0
-google-auth # Often needed alongside GCP libraries
+google-auth==2.24.0 # Often needed alongside GCP libraries
 GitPython==3.1.43
-psycopg2-binary # Often useful for tooling like Alembic, even with asyncpg
+psycopg2-binary==2.9.10 # Often useful for tooling like Alembic, even with asyncpg
+python-socketio[asyncio]==5.5.2
+websockets==11.0.3
+socketio==0.2.1
+
 
 # Testing & Linting Dependencies
 pytest==8.2.0
 pytest-asyncio==0.23.6
-pytest-cov
-ruff
-black
-isort 
+pytest-cov==4.1.0
+ruff==0.1.1
+black==23.3.0
+isort==5.10.1

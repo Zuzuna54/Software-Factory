@@ -1,7 +1,18 @@
 # app/main.py
 import logging
 from fastapi import FastAPI
+import socketio  # Import socketio
+
 from .api.endpoints import hello
+from .api.endpoints import dashboard  # Import dashboard endpoints
+from agents.metrics.exporters import json_exporter  # Import metrics exporter
+
+# --- Socket.IO Server Setup ---
+sio = socketio.AsyncServer(
+    async_mode="asgi", cors_allowed_origins=[]
+)  # Allow all origins for now
+sio_app = socketio.ASGIApp(sio)
+# -----------------------------
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -15,6 +26,12 @@ app = FastAPI(
 
 # Include routers
 app.include_router(hello.router, prefix="/api/v1", tags=["hello"])
+app.include_router(
+    json_exporter.router, prefix="/", tags=["metrics"]
+)  # Add metrics endpoint
+app.include_router(
+    dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"]
+)  # Add dashboard endpoints
 
 
 @app.get("/healthz", tags=["health"])
@@ -24,9 +41,32 @@ async def health_check():
     return {"status": "ok"}
 
 
-# Add more routers as the application grows
-# from .api.endpoints import items, users
-# app.include_router(items.router, prefix="/api/v1", tags=["items"])
-# app.include_router(users.router, prefix="/api/v1", tags=["users"])
+# Mount Socket.IO app
+app.mount("/ws", sio_app)  # Mount the socket.io ASGI app
 
-logger.info("FastAPI application initialized.")
+
+# --- Socket.IO Event Handlers (Example) ---
+@sio.event
+async def connect(sid, environ):
+    logger.info(f"Socket.IO client connected: {sid}")
+
+
+@sio.event
+async def disconnect(sid):
+    logger.info(f"Socket.IO client disconnected: {sid}")
+
+
+# Function to emit events (can be called from agents/tasks)
+async def emit_event(event_name: str, data: dict):
+    try:
+        await sio.emit(event_name, data)
+        logger.debug(f"Emitted Socket.IO event: {event_name}")
+    except Exception as e:
+        logger.error(
+            f"Failed to emit Socket.IO event '{event_name}': {e}", exc_info=True
+        )
+
+
+# -----------------------------------------
+
+logger.info("FastAPI application initialized with Socket.IO.")

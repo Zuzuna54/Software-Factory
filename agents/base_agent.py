@@ -19,6 +19,8 @@ from .communication.protocol import (
     AgentMessage,
     MessageType,
 )  # Added communication protocol
+from agents.metrics.collector import metrics_collector  # Import metrics collector
+from app.main import emit_event  # Import event emitter
 
 logger_agent = logging.getLogger(__name__)  # Renamed logger to avoid conflict
 
@@ -129,6 +131,16 @@ class BaseAgent:
                 self.logger.info(
                     f"Agent {self.agent_id} ({self.agent_name}) registered in database."
                 )
+                # Emit event on successful registration
+                await emit_event(
+                    "agent_registered",
+                    {
+                        "agent_id": self.agent_id,
+                        "agent_type": self.agent_type,
+                        "agent_name": self.agent_name,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                )
             else:
                 self.logger.debug(f"Agent {self.agent_id} already registered.")
                 # Optionally update capabilities or active status here if needed
@@ -142,6 +154,16 @@ class BaseAgent:
         self, message: AgentMessage
     ) -> Optional[str]:  # Takes AgentMessage object
         """Send a structured message to another agent and log it to the database."""
+        metrics_collector.increment_counter(
+            "agent_messages_sent_total",
+            tags={
+                "agent_type": self.agent_type,
+                "message_type": message.message_type.value,
+            },
+        )
+        metrics_collector.start_timer(
+            "agent_send_message_duration_seconds", tags={"agent_type": self.agent_type}
+        )
         if not self.db_client:
             self.logger.warning(
                 "No database client provided, message cannot be stored."
@@ -194,6 +216,18 @@ class BaseAgent:
                 parent_message_id,
             )
 
+            # Emit event after storing message
+            await emit_event(
+                "message_sent",
+                {
+                    "message_id": message.message_id,
+                    "sender": message.sender,
+                    "receiver": message.receiver,
+                    "message_type": message.message_type.value,
+                    "timestamp": message.created_at.isoformat(),
+                },
+            )
+
             # Store vector embedding for semantic search (if components available)
             if self.vector_memory and self.llm_provider:
                 try:
@@ -244,12 +278,32 @@ class BaseAgent:
             self.logger.info(
                 f"Message sent: {message.message_id} to {message.receiver} (type: {message.message_type.value})"
             )
+            metrics_collector.stop_timer(
+                "agent_send_message_duration_seconds",
+                tags={"agent_type": self.agent_type},
+            )
             return message.message_id
 
         except Exception as e:
+            metrics_collector.increment_counter(
+                "agent_messages_send_errors_total", tags={"agent_type": self.agent_type}
+            )
+            metrics_collector.stop_timer(
+                "agent_send_message_duration_seconds",
+                tags={"agent_type": self.agent_type},
+            )
             self.logger.error(
                 f"Error sending/storing message {message.message_id}: {e}",
                 exc_info=True,
+            )
+            await emit_event(
+                "error_occurred",
+                {
+                    "agent_id": self.agent_id,
+                    "action": "send_message",
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
             return None
 
@@ -502,6 +556,12 @@ class BaseAgent:
         self, prompt: str, system_message: Optional[str] = None
     ) -> Tuple[str, str]:
         """Perform internal reasoning using the LLM provider and log the thought process."""
+        metrics_collector.increment_counter(
+            "agent_think_requests_total", tags={"agent_type": self.agent_type}
+        )
+        metrics_collector.start_timer(
+            "agent_think_duration_seconds", tags={"agent_type": self.agent_type}
+        )
         if not self.llm_provider:
             error_msg = f"No LLM provider available for agent {self.agent_id}"
             self.logger.error(error_msg)
@@ -530,6 +590,9 @@ class BaseAgent:
 
         except Exception as e:
             error_msg = f"Error during LLM generation: {str(e)}"
+            metrics_collector.increment_counter(
+                "agent_think_errors_total", tags={"agent_type": self.agent_type}
+            )
             self.logger.error(f"{error_msg} for agent {self.agent_id}", exc_info=True)
         finally:
             execution_time = int(
@@ -592,6 +655,10 @@ class BaseAgent:
                         f"Failed to capture detailed thought process: {capture_e}",
                         exc_info=True,
                     )
+
+            metrics_collector.stop_timer(
+                "agent_think_duration_seconds", tags={"agent_type": self.agent_type}
+            )
 
         return (
             thought,

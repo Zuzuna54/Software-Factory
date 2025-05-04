@@ -2,9 +2,8 @@
 
 FROM node:20-alpine
 
-# Argument to set working directory, defaults to /app
-ARG WORKDIR=/app
-WORKDIR ${WORKDIR}
+# Set working directory
+WORKDIR /app
 
 # Install system dependencies
 RUN apk add --no-cache git
@@ -13,17 +12,21 @@ RUN apk add --no-cache git
 RUN npm install -g pnpm
 
 # Copy package management files first for layer caching
-COPY frontend/package.json frontend/pnpm-lock.yaml* ${WORKDIR}/
+# Context is now ./dashboard, so copy from the root of the context
+COPY package.json pnpm-lock.yaml* ./
 
 # Install dependencies using pnpm
 RUN pnpm install --frozen-lockfile
 
-# Copy the rest of the frontend application code
-COPY frontend/ ${WORKDIR}/
+# Copy the rest of the application code from the context root
+COPY . .
 
 # Set environment variables
 ENV NODE_ENV=development
 
+# Expose port (if needed, typically done in docker-compose)
+# EXPOSE 3000
+
 # Default command (can be overridden in docker-compose.yml)
-# Keeps the container running for exec or development overrides
-CMD ["tail", "-f", "/dev/null"] 
+# Example: Run the development server
+CMD ["pnpm", "dev"] 

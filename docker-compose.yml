@@ -102,12 +102,8 @@ services:
   # Frontend Service (Next.js)
   frontend:
     build:
-      context: .
-      dockerfile: infra/docker/node/Dockerfile
-      args:
-        WORKDIR: /app/frontend # Set workdir for frontend
-    volumes:
-      - ./frontend:/app/frontend # Mount only the frontend directory
+      context: ./dashboard
+      dockerfile: ../infra/docker/node/Dockerfile
     ports:
       - "3000:3000"
     depends_on:
@@ -115,10 +111,9 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:8000 # Example ENV VAR
       # Add other necessary ENV VARS
-    working_dir: /app/frontend
-    # Example command (adjust when frontend/package.json exists):
+    # Command is inherited from Dockerfile CMD ["pnpm", "dev"] unless overridden here.
+    # Keep command commented out or remove if CMD in Dockerfile is sufficient.
     # command: pnpm dev
-    command: tail -f /dev/null # Keep container running for exec
     restart: unless-stopped
 
 volumes:
