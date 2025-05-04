@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Names, docs & commit style guide
+agentRequested: true
+---
+
+- Class names: `PascalCase`; functions/vars: `snake_case`; React props: `camelCase`.
+- All public symbols must carry a Google‑style docstring or JSDoc.
+- Commit messages: `<type>(scope): summary` + body (why, not what).

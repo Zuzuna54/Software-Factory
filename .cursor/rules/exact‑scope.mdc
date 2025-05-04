@@ -1,0 +1,24 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Obey user scope—no extras, no assumptions
+alwaysApply: true
+---
+
+**Objective**  
+Deliver **exactly what the user requested, and nothing more**.  
+Do not add, refactor or “improve” unrelated parts of the codebase unless the user explicitly instructs you to.
+
+**Mandatory patterns**
+
+1. Parse the latest user message into a bullet list of concrete tasks.  
+2. Execute only those tasks—**no silent additions** such as bonus endpoints, refactors or stylistic tweaks.  
+3. If the request is ambiguous, ask for clarification instead of guessing.  
+
+**Verification checklist**
+
+- [ ] Every code change maps to a bullet in the parsed request.  
+- [ ] No unrelated files touched.  

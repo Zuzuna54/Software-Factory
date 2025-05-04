@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Audit current dependencies before adding new ones
+alwaysApply: true
+---
+
+**Objective**  
+Eliminate redundant packages and keep the dependency tree lean.
+
+**Mandatory patterns**
+
+1. Query `pyproject.toml`, `package.json`, and `requirements.txt` via memory before proposing a new dependency.  
+2. If similar functionality exists (e.g., `requests` already present, don’t add `httpx` unless async is required), **reuse the existing library**.  
+3. For any new package, append a one‑line justification to `docs/DEPENDENCIES.md` in the same commit.
+
+**Verification checklist**
+
+- [ ] Dependency list checked & logged in agent output.  
+- [ ] New package justified; no overlap with existing libs.  

@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Deployment & infra rules for DevOpsAgent
+alwaysApply: true
+---
+
+- Build images with **Cloud Build** (Dockerfile at repo root).
+- Images stored in **Artifact Registry** (`us-central1-docker.pkg.dev/project/ai-team/*`).
+- Deploy via **Cloud Run** revisions, traffic 100 % to new rev only after `/healthz` returns 200 three times.
+- DB migrations run inside a Cloud Build step using `alembic upgrade head`.
+- Rollback strategy: `gcloud run services update --revision` to previous stable rev.

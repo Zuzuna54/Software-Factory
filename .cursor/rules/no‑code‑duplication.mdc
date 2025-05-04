@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Prevent duplicate logic by scanning existing code
+alwaysApply: true
+---
+
+**Objective**  
+Before writing new code, **search the entire repository** for similar functions, classes or utilities to avoid duplication.
+
+**Mandatory patterns**
+
+1. Run a semantic search (`search_memory()`) with key terms from the intended feature.  
+2. If existing code offers 80 %+ of required behavior, **reuse or extend it** instead of rewriting.  
+3. Add new symbols only when (a) functionality is novel, or (b) reuse would create tight coupling.
+
+**Verification checklist**
+
+- [ ] Memory search results attached to the “thinking” step.  
+- [ ] Commit message cites why reuse wasn’t possible if new code added.  
