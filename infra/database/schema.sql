@@ -78,6 +78,33 @@ CREATE TABLE tasks (
     related_artifacts UUID[] -- References to requirements, designs, etc.
 );
 
+-- Sprints Table (Added based on ScrumMasterAgent usage)
+CREATE TABLE sprints (
+    sprint_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sprint_name VARCHAR(255) NOT NULL,
+    start_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP NOT NULL,
+    goal TEXT,
+    created_by UUID REFERENCES agents(agent_id),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    status VARCHAR(50) NOT NULL -- e.g., PLANNING, ACTIVE, COMPLETED
+);
+
+-- Project Vision Table (Added based on ProductManagerAgent usage)
+CREATE TABLE project_vision (
+    vision_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id VARCHAR(100) NOT NULL DEFAULT 'default-project', -- Assuming a default or passed project ID
+    title VARCHAR(255) NOT NULL,
+    vision_statement TEXT,
+    target_audience TEXT,
+    key_goals JSONB,
+    success_metrics JSONB,
+    constraints JSONB,
+    created_by UUID REFERENCES agents(agent_id),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    status VARCHAR(50) NOT NULL -- e.g., DRAFT, ACTIVE, ARCHIVED
+);
+
 -- Meetings and Conversations
 CREATE TABLE meetings (
     meeting_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -114,4 +141,68 @@ CREATE INDEX idx_artifacts_creator ON artifacts(created_by);
 CREATE INDEX idx_agent_messages_timestamp ON agent_messages(timestamp DESC);
 CREATE INDEX idx_agent_activities_timestamp ON agent_activities(timestamp DESC);
 CREATE INDEX idx_tasks_created_at ON tasks(created_at DESC);
-CREATE INDEX idx_meeting_conversations_meeting_id ON meeting_conversations(meeting_id, sequence_number); 
+CREATE INDEX idx_meeting_conversations_meeting_id ON meeting_conversations(meeting_id, sequence_number);
+
+-- Enhanced Vector Storage (Iteration 4)
+CREATE TABLE IF NOT EXISTS enhanced_vector_storage (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- Changed from SERIAL to UUID
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id VARCHAR(255) NOT NULL,
+    embedding VECTOR(1536) NOT NULL,
+    content TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    tags TEXT[],
+    UNIQUE(entity_type, entity_id)
+);
+
+-- Vector Relationships (Iteration 4)
+CREATE TABLE IF NOT EXISTS vector_relationships (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    source_entity_type VARCHAR(50) NOT NULL,
+    source_entity_id VARCHAR(255) NOT NULL,
+    target_entity_type VARCHAR(50) NOT NULL,
+    target_entity_id VARCHAR(255) NOT NULL,
+    relationship_type VARCHAR(50) NOT NULL,
+    metadata JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type)
+);
+
+-- Thought Processes Table (Iteration 4)
+CREATE TABLE IF NOT EXISTS thought_processes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_id UUID NOT NULL REFERENCES agents(agent_id), -- Added FK constraint
+    timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+    context TEXT,
+    thought_steps JSONB NOT NULL,
+    reasoning_path TEXT NOT NULL,
+    conclusion TEXT,
+    related_task_id UUID REFERENCES tasks(task_id), -- Added FK constraint
+    related_files TEXT[],
+    metadata JSONB,
+    tags TEXT[]
+);
+
+-- Indexes for Enhanced Vector Storage (Iteration 4)
+CREATE INDEX IF NOT EXISTS idx_enhanced_vector_entity_type
+ON enhanced_vector_storage(entity_type);
+
+CREATE INDEX IF NOT EXISTS idx_enhanced_vector_tags
+ON enhanced_vector_storage USING GIN(tags);
+
+CREATE INDEX IF NOT EXISTS idx_enhanced_vector_embedding
+ON enhanced_vector_storage USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+-- Indexes for Vector Relationships (Iteration 4)
+CREATE INDEX IF NOT EXISTS idx_vector_relationships_source
+ON vector_relationships(source_entity_type, source_entity_id);
+
+CREATE INDEX IF NOT EXISTS idx_vector_relationships_target
+ON vector_relationships(target_entity_type, target_entity_id);
+
+-- Indexes for Thought Processes (Iteration 4)
+CREATE INDEX IF NOT EXISTS idx_thought_processes_agent_id ON thought_processes(agent_id);
+CREATE INDEX IF NOT EXISTS idx_thought_processes_task_id ON thought_processes(related_task_id);
+CREATE INDEX IF NOT EXISTS idx_thought_processes_tags ON thought_processes USING GIN(tags); 

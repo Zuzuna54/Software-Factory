@@ -1,5 +1,6 @@
 # agents/tests/test_base_agent.py
 
+import asyncio
 import pytest
 import uuid
 from typing import Dict, List, Any

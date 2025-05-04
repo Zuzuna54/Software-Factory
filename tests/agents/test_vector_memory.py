@@ -2,8 +2,13 @@
 
 import pytest
 import random
-from ..memory.vector_memory import VectorMemory
-from ..db.postgres import PostgresClient
+import uuid
+
+# from ..memory.vector_memory import VectorMemory
+from agents.memory.vector_memory import VectorMemory
+
+# from ..db.postgres import PostgresClient
+from agents.db.postgres import PostgresClient
 
 pytestmark = pytest.mark.asyncio
 
@@ -161,3 +166,49 @@ async def test_list_and_count_embeddings(vector_memory: VectorMemory):
 
     non_existent_count = await vector_memory.count_embeddings("non_existent_type")
     assert non_existent_count == 0
+
+
+@pytest.mark.asyncio
+async def test_add_and_search_embedding(
+    vector_memory: VectorMemory,
+    embedding: list[float],
+    entity_type: str,
+    entity_id: str,
+    metadata: dict = None,
+    threshold: float = 0.95,
+    limit: int = 3,
+):
+    """Test adding and searching for an embedding."""
+    await vector_memory.store_embedding(entity_type, entity_id, embedding, metadata)
+
+    retrieved_embedding = await vector_memory.get_embedding(entity_type, entity_id)
+    assert retrieved_embedding is not None
+    assert len(retrieved_embedding) == EMBEDDING_DIM
+    # Compare floats with tolerance due to potential precision issues
+    assert pytest.approx(retrieved_embedding) == embedding
+
+    similar_ids = await vector_memory.search_similar(
+        entity_type,
+        embedding,
+        threshold=threshold,
+        limit=limit,
+    )
+
+    assert len(similar_ids) >= 1
+    assert entity_id in similar_ids
+    # The order should have entity_id first due to closeness
+    assert similar_ids[0] == entity_id
+
+    # Test with a lower threshold (should match more, potentially all)
+    similar_ids_low_thresh = await vector_memory.search_similar(
+        entity_type, embedding, threshold=0.1, limit=10  # Low threshold
+    )
+    assert len(similar_ids_low_thresh) >= 1  # Should find at least the closest one
+    # Depending on random values, might find more
+
+    # Test limit
+    similar_ids_limit_1 = await vector_memory.search_similar(
+        entity_type, embedding, threshold=0.1, limit=1
+    )
+    assert len(similar_ids_limit_1) == 1
+    assert similar_ids_limit_1[0] == entity_id

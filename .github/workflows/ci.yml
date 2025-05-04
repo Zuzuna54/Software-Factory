@@ -55,16 +55,8 @@ jobs:
           pip install ruff black isort
           # Install test dependencies
           pip install pytest pytest-cov pytest-asyncio
-          # Install application dependencies (using the placeholder method for now)
-          pip install \
-            fastapi==0.111.0 uvicorn[standard]==0.29.0 \
-            sqlalchemy[asyncio]==2.0.30 asyncpg==0.29.0 \
-            alembic==1.13.1 pgvector==0.2.5 \
-            celery==5.4.0 redis==5.0.4 \
-            pydantic==2.7.1 python-dotenv==1.0.1 \
-            httpx==0.27.0 google-cloud-aiplatform==1.53.0 \
-            GitPython==3.1.43
-          # Add command here to install from pyproject.toml/requirements.txt when available
+          # Install application dependencies
+          pip install -r requirements.txt
 
       - name: Lint with Ruff
         run: |

@@ -58,6 +58,47 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
+  celery_worker:
+    build:
+      context: .
+      dockerfile: infra/docker/python/Dockerfile
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres: # Worker might need DB access
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://agent_user:agent_password@postgres:5432/agent_team
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+      # Add other necessary ENV VARS (e.g., LLM API keys from .env)
+    # Command to start the Celery worker
+    # Assumes celery app is defined in agents/orchestration/celery_app.py
+    command: celery -A agents.tasks.celery_app worker --loglevel=info
+    restart: unless-stopped
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: infra/docker/python/Dockerfile
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres: # Beat might need DB access
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://agent_user:agent_password@postgres:5432/agent_team
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+      # Add other necessary ENV VARS
+    # Command to start the Celery beat scheduler
+    command: celery -A agents.tasks.celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    restart: unless-stopped
+
   # Frontend Service (Next.js)
   frontend:
     build:

@@ -6,11 +6,14 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
+import time
 
 # Local imports (ensure correct relative paths)
 from .llm.base import LLMProvider
-from .memory.vector_memory import VectorMemory
+from .memory.vector_memory import EnhancedVectorMemory
 from .db.postgres import PostgresClient
+from .memory.search import MemorySearch
+from .logging.thought_capture import ThoughtCapture
 from .communication.protocol import (
     CommunicationProtocol,
     AgentMessage,
@@ -30,8 +33,10 @@ class BaseAgent:
         agent_name: str = "BaseAgent",
         llm_provider: Optional[LLMProvider] = None,
         db_client: Optional[PostgresClient] = None,
-        vector_memory: Optional[VectorMemory] = None,
+        vector_memory: Optional[EnhancedVectorMemory] = None,
         comm_protocol: Optional[CommunicationProtocol] = None,  # Added comm_protocol
+        memory_search: Optional[MemorySearch] = None,
+        thought_capture: Optional[ThoughtCapture] = None,
         capabilities: Optional[Dict[str, Any]] = None,
     ):
         self.agent_id = agent_id or str(uuid.uuid4())
@@ -43,6 +48,35 @@ class BaseAgent:
         self.comm_protocol = (
             comm_protocol or CommunicationProtocol()
         )  # Initialize if not provided
+
+        # Initialize MemorySearch if dependencies are available
+        if self.db_client and self.vector_memory and self.llm_provider:
+            self.memory_search = memory_search or MemorySearch(
+                db_client=self.db_client,
+                vector_memory=self.vector_memory,
+                llm_provider=self.llm_provider,
+            )
+        else:
+            self.memory_search = None
+            self.logger.warning(
+                "MemorySearch could not be initialized due to missing dependencies."
+            )
+
+        # Initialize ThoughtCapture if dependencies are available
+        if self.db_client:
+            self.thought_capture = thought_capture or ThoughtCapture(
+                db_client=self.db_client,
+                vector_memory=self.vector_memory,
+                llm_provider=self.llm_provider,
+            )
+            # Ensure ThoughtCapture is initialized (creates tables/indexes if needed)
+            asyncio.create_task(self.thought_capture.initialize())
+        else:
+            self.thought_capture = None
+            self.logger.warning(
+                "ThoughtCapture could not be initialized due to missing DB client."
+            )
+
         self.capabilities = capabilities or {}
         # Use agent-specific logger name
         self.logger = logging.getLogger(
@@ -167,11 +201,19 @@ class BaseAgent:
                         message.content
                     )
                     if embedding:
-                        await self.vector_memory.store_embedding(
-                            "agent_messages",  # Use a consistent entity type name
-                            message.message_id,
-                            embedding,
-                            metadata=message.metadata,  # Store message metadata with embedding
+                        await self.vector_memory.store_entity(
+                            entity_type="AgentMessage",
+                            entity_id=message.message_id,
+                            content=message.content,
+                            embedding=embedding,
+                            metadata={
+                                "sender": message.sender,
+                                "receiver": message.receiver,
+                                "type": message.message_type.value,
+                                "task_id": message.related_task,
+                                **(message.metadata or {}),
+                            },
+                            tags=["communication", message.message_type.value.lower()],
                         )
                     else:
                         self.logger.warning(
@@ -318,73 +360,57 @@ class BaseAgent:
     async def search_messages(
         self, query_text: str, limit: int = 10
     ) -> List[AgentMessage]:
-        """Search for messages semantically similar to the query text."""
-        if not self.vector_memory or not self.llm_provider or not self.db_client:
+        """Search for messages semantically similar to the query text using MemorySearch."""
+        if not self.memory_search:
             self.logger.warning(
-                "Vector memory, LLM provider, or DB client not available for message search."
-            )
-            return []
-
-        # Ensure DB pool is ready
-        try:
-            await self.db_client._ensure_initialized()
-            await self.vector_memory._ensure_initialized()
-        except Exception as e:
-            self.logger.error(
-                f"Failed to ensure DB/Memory initialization for searching messages: {e}",
-                exc_info=True,
+                "MemorySearch is not available. Cannot search messages."
             )
             return []
 
         try:
-            # Generate embedding for query
-            query_embedding = await self.llm_provider.generate_embeddings(
-                query_text, task_type="RETRIEVAL_QUERY"
-            )  # Use query task type
-            if not query_embedding:
-                self.logger.warning("Failed to generate query embedding for search.")
-                return []
-
-            # Search for similar message IDs in vector memory
-            similar_ids = await self.vector_memory.search_similar(
-                "agent_messages",  # Use the consistent entity type name
-                query_embedding,
+            # Use MemorySearch to find relevant AgentMessage entities
+            search_results = await self.memory_search.search_memory(
+                query=query_text,
+                entity_types=["AgentMessage"],  # Specify the entity type to search
                 limit=limit,
-                threshold=0.7,  # Adjust threshold as needed
+                include_content=True,  # Ensure content is returned for parsing
             )
-
-            if not similar_ids:
-                self.logger.debug("No similar message IDs found in vector memory.")
-                return []
-
-            # Fetch the actual messages from the main table
-            placeholders = ", ".join(f"${i+1}" for i in range(len(similar_ids)))
-            query = f"""
-            SELECT
-                message_id, timestamp, sender_id, receiver_id,
-                message_type, content, related_task_id, metadata
-            FROM agent_messages
-            WHERE message_id IN ({placeholders})
-            ORDER BY timestamp DESC -- Or potentially order by similarity if vector search returned scores
-            """
-
-            results = await self.db_client.fetch_all(query, *similar_ids)
 
             messages = []
-            for row in results:
+            for result in search_results:
+                # Reconstruct AgentMessage from the search result data
+                # Assumes metadata stored in vector store contains necessary fields
                 msg_data = {
-                    "message_id": str(row["message_id"]),
-                    "sender": str(row["sender_id"]),
-                    "receiver": str(row["receiver_id"]),
-                    "message_type": row["message_type"],
-                    "content": row["content"],
-                    "related_task": (
-                        str(row["related_task_id"]) if row["related_task_id"] else None
-                    ),
-                    "created_at": row["timestamp"],
-                    "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
+                    "message_id": result["entity_id"],
+                    "sender": result["metadata"].get("sender"),
+                    "receiver": result["metadata"].get("receiver"),
+                    "message_type": result["metadata"].get("type"),
+                    "content": result.get(
+                        "content", ""
+                    ),  # Use content from search result
+                    "related_task": result["metadata"].get("task_id"),
+                    "created_at": result["created_at"],
+                    "metadata": result["metadata"],
                 }
-                messages.append(self.comm_protocol.parse_message(msg_data))
+                # Basic validation
+                if not all(
+                    [msg_data["sender"], msg_data["receiver"], msg_data["message_type"]]
+                ):
+                    self.logger.warning(
+                        f"Skipping search result with incomplete data: {result['entity_id']}"
+                    )
+                    continue
+
+                try:
+                    # Use the protocol parser to create AgentMessage object
+                    parsed_message = self.comm_protocol.parse_message(msg_data)
+                    if parsed_message:
+                        messages.append(parsed_message)
+                except Exception as parse_e:
+                    self.logger.error(
+                        f"Failed to parse search result into AgentMessage: {parse_e}",
+                        exc_info=True,
+                    )
 
             await self.log_activity(
                 activity_type="MessageSearch",
@@ -396,7 +422,7 @@ class BaseAgent:
 
         except Exception as e:
             self.logger.error(
-                f"Error during message search for query '{query_text[:50]}...': {e}",
+                f"Error during memory search for query '{query_text[:50]}...': {e}",
                 exc_info=True,
             )
             return []
@@ -523,16 +549,49 @@ class BaseAgent:
                 else {"thought_preview": thought[:100] + "..."}
             )
 
+            # Log simple activity record
             await self.log_activity(
                 activity_type=activity_type,
                 description=description,
-                thought_process=(
-                    thought if not error_msg else None
-                ),  # Only log full thought if successful
+                thought_process=None,  # Simple thought stored separately now
                 input_data={"prompt": prompt, "system_message": system_message},
                 output_data=output_data,
                 execution_time_ms=execution_time,
             )
+
+            # Capture detailed thought process if ThoughtCapture is available
+            if self.thought_capture and not error_msg:
+                try:
+                    # Structure thought steps (simplified example)
+                    thought_steps = [
+                        {
+                            "step": 1,
+                            "timestamp": time.time(),
+                            "action": "Received Prompt",
+                            "content": prompt[:500],
+                        },
+                        {
+                            "step": 2,
+                            "timestamp": time.time(),
+                            "action": "Generated Thought",
+                            "content": thought[:500],
+                        },
+                    ]
+                    await self.thought_capture.capture_thought_process(
+                        agent_id=self.agent_id,
+                        context=prompt,
+                        thought_steps=thought_steps,
+                        reasoning_path=thought,  # Use full thought as reasoning path for now
+                        conclusion=thought.split("\n")[-1][
+                            :200
+                        ],  # Example conclusion heuristic
+                        tags=["reasoning", self.agent_type],
+                    )
+                except Exception as capture_e:
+                    self.logger.error(
+                        f"Failed to capture detailed thought process: {capture_e}",
+                        exc_info=True,
+                    )
 
         return (
             thought,
