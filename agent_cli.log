@@ -1,0 +1,2606 @@
+2025-05-04 19:52:20,493 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 19:52:20,493 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 19:52:20,493 - agents.db.postgres - ERROR - Failed to initialize database pool: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1041, in _connect
+    addrs, params, config = _parse_connect_arguments(**kwargs)
+                            ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 749, in _parse_connect_arguments
+    addrs, params = _parse_connect_dsn_and_args(
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dsn=dsn, host=host, port=port, user=user,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        target_session_attrs=target_session_attrs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        krbsrvname=krbsrvname, gsslib=gsslib)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 283, in _parse_connect_dsn_and_args
+    raise exceptions.ClientConfigurationError(
+        'invalid DSN: scheme is expected to be either '
+        '"postgresql" or "postgres", got {!r}'.format(parsed.scheme))
+asyncpg.exceptions._base.ClientConfigurationError: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+2025-05-04 19:52:20,498 - agent.cli - ERROR - CLI Initialization failed: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 76, in initialize
+    await self.db_client.initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1041, in _connect
+    addrs, params, config = _parse_connect_arguments(**kwargs)
+                            ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 749, in _parse_connect_arguments
+    addrs, params = _parse_connect_dsn_and_args(
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dsn=dsn, host=host, port=port, user=user,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        target_session_attrs=target_session_attrs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        krbsrvname=krbsrvname, gsslib=gsslib)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 283, in _parse_connect_dsn_and_args
+    raise exceptions.ClientConfigurationError(
+        'invalid DSN: scheme is expected to be either '
+        '"postgresql" or "postgres", got {!r}'.format(parsed.scheme))
+asyncpg.exceptions._base.ClientConfigurationError: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+2025-05-04 19:52:20,500 - agents.db.postgres - WARNING - Attempted to close an uninitialized or already closed connection pool.
+2025-05-04 19:52:20,500 - agent.cli - INFO - CLI resources closed.
+2025-05-04 19:53:33,175 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 19:53:33,175 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 19:53:33,176 - agents.db.postgres - ERROR - Failed to initialize database pool: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1041, in _connect
+    addrs, params, config = _parse_connect_arguments(**kwargs)
+                            ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 749, in _parse_connect_arguments
+    addrs, params = _parse_connect_dsn_and_args(
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dsn=dsn, host=host, port=port, user=user,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        target_session_attrs=target_session_attrs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        krbsrvname=krbsrvname, gsslib=gsslib)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 283, in _parse_connect_dsn_and_args
+    raise exceptions.ClientConfigurationError(
+        'invalid DSN: scheme is expected to be either '
+        '"postgresql" or "postgres", got {!r}'.format(parsed.scheme))
+asyncpg.exceptions._base.ClientConfigurationError: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+2025-05-04 19:53:33,180 - agent.cli - ERROR - CLI Initialization failed: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 76, in initialize
+    await self.db_client.initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1041, in _connect
+    addrs, params, config = _parse_connect_arguments(**kwargs)
+                            ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 749, in _parse_connect_arguments
+    addrs, params = _parse_connect_dsn_and_args(
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dsn=dsn, host=host, port=port, user=user,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        target_session_attrs=target_session_attrs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        krbsrvname=krbsrvname, gsslib=gsslib)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 283, in _parse_connect_dsn_and_args
+    raise exceptions.ClientConfigurationError(
+        'invalid DSN: scheme is expected to be either '
+        '"postgresql" or "postgres", got {!r}'.format(parsed.scheme))
+asyncpg.exceptions._base.ClientConfigurationError: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+2025-05-04 19:53:33,182 - agents.db.postgres - WARNING - Attempted to close an uninitialized or already closed connection pool.
+2025-05-04 19:53:33,183 - agent.cli - INFO - CLI resources closed.
+2025-05-04 19:54:15,250 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 19:54:15,250 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 19:54:15,250 - agents.db.postgres - ERROR - Failed to initialize database pool: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1041, in _connect
+    addrs, params, config = _parse_connect_arguments(**kwargs)
+                            ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 749, in _parse_connect_arguments
+    addrs, params = _parse_connect_dsn_and_args(
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dsn=dsn, host=host, port=port, user=user,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        target_session_attrs=target_session_attrs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        krbsrvname=krbsrvname, gsslib=gsslib)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 283, in _parse_connect_dsn_and_args
+    raise exceptions.ClientConfigurationError(
+        'invalid DSN: scheme is expected to be either '
+        '"postgresql" or "postgres", got {!r}'.format(parsed.scheme))
+asyncpg.exceptions._base.ClientConfigurationError: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+2025-05-04 19:54:15,255 - agent.cli - ERROR - CLI Initialization failed: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 76, in initialize
+    await self.db_client.initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1041, in _connect
+    addrs, params, config = _parse_connect_arguments(**kwargs)
+                            ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 749, in _parse_connect_arguments
+    addrs, params = _parse_connect_dsn_and_args(
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dsn=dsn, host=host, port=port, user=user,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        target_session_attrs=target_session_attrs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        krbsrvname=krbsrvname, gsslib=gsslib)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 283, in _parse_connect_dsn_and_args
+    raise exceptions.ClientConfigurationError(
+        'invalid DSN: scheme is expected to be either '
+        '"postgresql" or "postgres", got {!r}'.format(parsed.scheme))
+asyncpg.exceptions._base.ClientConfigurationError: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+2025-05-04 19:54:15,257 - agents.db.postgres - WARNING - Attempted to close an uninitialized or already closed connection pool.
+2025-05-04 19:54:15,257 - agent.cli - INFO - CLI resources closed.
+2025-05-04 19:55:56,477 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 19:55:56,477 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 19:55:56,487 - agents.db.postgres - ERROR - Failed to initialize database pool: [Errno 8] nodename nor servname provided, or not known
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1075, in _connect
+    raise last_error or exceptions.TargetServerAttributeNotMatched(
+    ...<2 lines>...
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1049, in _connect
+    conn = await _connect_addr(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 886, in _connect_addr
+    return await __connect_addr(params, True, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 931, in __connect_addr
+    tr, pr = await connector
+             ^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 802, in _create_ssl_connection
+    tr, pr = await loop.create_connection(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        host, port)
+        ^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 1117, in create_connection
+    infos = await self._ensure_resolved(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        (host, port), family=family,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        type=socket.SOCK_STREAM, proto=proto, flags=flags, loop=self)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 1500, in _ensure_resolved
+    return await loop.getaddrinfo(host, port, family=family, type=type,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                  proto=proto, flags=flags)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 939, in getaddrinfo
+    return await self.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        None, getaddr_func, host, port, family, type, proto, flags)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/socket.py", line 977, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 8] nodename nor servname provided, or not known
+2025-05-04 19:55:56,496 - agent.cli - ERROR - CLI Initialization failed: [Errno 8] nodename nor servname provided, or not known
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 74, in initialize
+    await self.db_client.initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1075, in _connect
+    raise last_error or exceptions.TargetServerAttributeNotMatched(
+    ...<2 lines>...
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1049, in _connect
+    conn = await _connect_addr(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 886, in _connect_addr
+    return await __connect_addr(params, True, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 931, in __connect_addr
+    tr, pr = await connector
+             ^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 802, in _create_ssl_connection
+    tr, pr = await loop.create_connection(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        host, port)
+        ^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 1117, in create_connection
+    infos = await self._ensure_resolved(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        (host, port), family=family,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        type=socket.SOCK_STREAM, proto=proto, flags=flags, loop=self)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 1500, in _ensure_resolved
+    return await loop.getaddrinfo(host, port, family=family, type=type,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                  proto=proto, flags=flags)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 939, in getaddrinfo
+    return await self.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        None, getaddr_func, host, port, family, type, proto, flags)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/socket.py", line 977, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 8] nodename nor servname provided, or not known
+2025-05-04 19:55:56,500 - agents.db.postgres - WARNING - Attempted to close an uninitialized or already closed connection pool.
+2025-05-04 19:55:56,500 - agent.cli - INFO - CLI resources closed.
+2025-05-04 19:57:10,694 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 19:57:10,695 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 19:57:10,695 - agents.db.postgres - ERROR - Failed to initialize database pool: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1041, in _connect
+    addrs, params, config = _parse_connect_arguments(**kwargs)
+                            ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 749, in _parse_connect_arguments
+    addrs, params = _parse_connect_dsn_and_args(
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dsn=dsn, host=host, port=port, user=user,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        target_session_attrs=target_session_attrs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        krbsrvname=krbsrvname, gsslib=gsslib)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 283, in _parse_connect_dsn_and_args
+    raise exceptions.ClientConfigurationError(
+        'invalid DSN: scheme is expected to be either '
+        '"postgresql" or "postgres", got {!r}'.format(parsed.scheme))
+asyncpg.exceptions._base.ClientConfigurationError: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+2025-05-04 19:57:10,700 - agent.cli - ERROR - CLI Initialization failed: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 74, in initialize
+    await self.db_client.initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1041, in _connect
+    addrs, params, config = _parse_connect_arguments(**kwargs)
+                            ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 749, in _parse_connect_arguments
+    addrs, params = _parse_connect_dsn_and_args(
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dsn=dsn, host=host, port=port, user=user,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        target_session_attrs=target_session_attrs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        krbsrvname=krbsrvname, gsslib=gsslib)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 283, in _parse_connect_dsn_and_args
+    raise exceptions.ClientConfigurationError(
+        'invalid DSN: scheme is expected to be either '
+        '"postgresql" or "postgres", got {!r}'.format(parsed.scheme))
+asyncpg.exceptions._base.ClientConfigurationError: invalid DSN: scheme is expected to be either "postgresql" or "postgres", got 'postgresql+asyncpg'
+2025-05-04 19:57:10,702 - agents.db.postgres - WARNING - Attempted to close an uninitialized or already closed connection pool.
+2025-05-04 19:57:10,703 - agent.cli - INFO - CLI resources closed.
+2025-05-04 19:57:24,486 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 19:57:24,487 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 19:57:24,495 - agents.db.postgres - ERROR - Failed to initialize database pool: role "user" does not exist
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1049, in _connect
+    conn = await _connect_addr(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 886, in _connect_addr
+    return await __connect_addr(params, True, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 934, in __connect_addr
+    await connected
+asyncpg.exceptions.InvalidAuthorizationSpecificationError: role "user" does not exist
+2025-05-04 19:57:24,500 - agent.cli - ERROR - CLI Initialization failed: role "user" does not exist
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 74, in initialize
+    await self.db_client.initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/db/postgres.py", line 70, in initialize
+    self.pool = await asyncpg.create_pool(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 418, in _async__init__
+    await self._initialize()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 445, in _initialize
+    await first_ch.connect()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 132, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/pool.py", line 517, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<20 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1049, in _connect
+    conn = await _connect_addr(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 886, in _connect_addr
+    return await __connect_addr(params, True, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 934, in __connect_addr
+    await connected
+asyncpg.exceptions.InvalidAuthorizationSpecificationError: role "user" does not exist
+2025-05-04 19:57:24,502 - agents.db.postgres - WARNING - Attempted to close an uninitialized or already closed connection pool.
+2025-05-04 19:57:24,502 - agent.cli - INFO - CLI resources closed.
+2025-05-04 19:58:13,059 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 19:58:13,059 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 19:58:13,084 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 19:58:13,085 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 19:58:13,085 - agents.llm.vertex_gemini_provider - ERROR - Failed to load model gemini-1.5-flash-001: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 60, in __init__
+    self.model_instance = aiplatform.GenerativeModel(self.model_name)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+2025-05-04 19:58:13,086 - agent.cli - ERROR - CLI Initialization failed: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 60, in __init__
+    self.model_instance = aiplatform.GenerativeModel(self.model_name)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+2025-05-04 19:58:13,087 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 19:58:13,091 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 19:58:13,091 - agent.cli - INFO - CLI resources closed.
+2025-05-04 19:59:26,871 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 19:59:26,872 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 19:59:26,895 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 19:59:26,895 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 19:59:26,895 - agents.llm.vertex_gemini_provider - ERROR - Failed to load model gemini-1.5-flash-001: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 60, in __init__
+    self.model_instance = aiplatform.GenerativeModel(self.model_name)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+2025-05-04 19:59:26,900 - agent.cli - ERROR - CLI Initialization failed: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 60, in __init__
+    self.model_instance = aiplatform.GenerativeModel(self.model_name)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+2025-05-04 19:59:26,903 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 19:59:26,907 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 19:59:26,908 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:01:46,087 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:01:46,087 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:01:46,108 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:01:46,108 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:01:46,109 - agents.llm.vertex_gemini_provider - ERROR - Failed to load model gemini-1.5-flash-001: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 60, in __init__
+    self.model_instance = aiplatform.GenerativeModel(self.model_name)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+2025-05-04 20:01:46,110 - agent.cli - ERROR - CLI Initialization failed: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 60, in __init__
+    self.model_instance = aiplatform.GenerativeModel(self.model_name)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+2025-05-04 20:01:46,111 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:01:46,114 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:01:46,115 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:03:18,032 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:03:18,032 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:03:18,053 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:03:18,053 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:03:18,053 - agents.llm.vertex_gemini_provider - ERROR - Failed to load model gemini-1.5-flash-001: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 60, in __init__
+    self.model_instance = aiplatform.GenerativeModel(self.model_name)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+2025-05-04 20:03:18,055 - agent.cli - ERROR - CLI Initialization failed: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 60, in __init__
+    self.model_instance = aiplatform.GenerativeModel(self.model_name)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'GenerativeModel'
+2025-05-04 20:03:18,056 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:03:18,059 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:03:18,059 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:05:00,136 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:05:00,136 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:05:00,158 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:05:00,158 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:05:00,158 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:05:00,159 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: module 'google.cloud.aiplatform' has no attribute 'language_models'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 76, in __init__
+    aiplatform.language_models.TextEmbeddingModel.from_pretrained(
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'language_models'
+2025-05-04 20:05:00,160 - agent.cli - ERROR - CLI Initialization failed: module 'google.cloud.aiplatform' has no attribute 'language_models'
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 76, in __init__
+    aiplatform.language_models.TextEmbeddingModel.from_pretrained(
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.aiplatform' has no attribute 'language_models'
+2025-05-04 20:05:00,161 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:05:00,165 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:05:00,165 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:05:29,550 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:05:29,550 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:05:29,572 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:05:29,572 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:05:29,572 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:05:34,569 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: 403 Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes. [reason: "USER_PROJECT_DENIED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "development-449400"
+}
+metadata {
+  key: "consumer"
+  value: "projects/development-449400"
+}
+, locale: "en-US"
+message: "Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes."
+, links {
+  description: "Google developer console IAM admin"
+  url: "https://console.developers.google.com/iam-admin/iam/project?project=development-449400"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes. [reason: "USER_PROJECT_DENIED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "development-449400"
+}
+metadata {
+  key: "consumer"
+  value: "projects/development-449400"
+}
+, locale: "en-US"
+message: "Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes."
+, links {
+  description: "Google developer console IAM admin"
+  url: "https://console.developers.google.com/iam-admin/iam/project?project=development-449400"
+}
+]
+2025-05-04 20:05:34,575 - agent.cli - ERROR - CLI Initialization failed: 403 Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes. [reason: "USER_PROJECT_DENIED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "development-449400"
+}
+metadata {
+  key: "consumer"
+  value: "projects/development-449400"
+}
+, locale: "en-US"
+message: "Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes."
+, links {
+  description: "Google developer console IAM admin"
+  url: "https://console.developers.google.com/iam-admin/iam/project?project=development-449400"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes. [reason: "USER_PROJECT_DENIED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "development-449400"
+}
+metadata {
+  key: "consumer"
+  value: "projects/development-449400"
+}
+, locale: "en-US"
+message: "Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes."
+, links {
+  description: "Google developer console IAM admin"
+  url: "https://console.developers.google.com/iam-admin/iam/project?project=development-449400"
+}
+]
+2025-05-04 20:05:34,578 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:05:34,588 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:05:34,588 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:06:45,564 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:06:45,564 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:06:45,585 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:06:45,586 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:06:45,586 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:06:47,295 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: 403 Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes. [reason: "USER_PROJECT_DENIED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "development-449400"
+}
+metadata {
+  key: "consumer"
+  value: "projects/development-449400"
+}
+, locale: "en-US"
+message: "Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes."
+, links {
+  description: "Google developer console IAM admin"
+  url: "https://console.developers.google.com/iam-admin/iam/project?project=development-449400"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes. [reason: "USER_PROJECT_DENIED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "development-449400"
+}
+metadata {
+  key: "consumer"
+  value: "projects/development-449400"
+}
+, locale: "en-US"
+message: "Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes."
+, links {
+  description: "Google developer console IAM admin"
+  url: "https://console.developers.google.com/iam-admin/iam/project?project=development-449400"
+}
+]
+2025-05-04 20:06:47,301 - agent.cli - ERROR - CLI Initialization failed: 403 Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes. [reason: "USER_PROJECT_DENIED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "development-449400"
+}
+metadata {
+  key: "consumer"
+  value: "projects/development-449400"
+}
+, locale: "en-US"
+message: "Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes."
+, links {
+  description: "Google developer console IAM admin"
+  url: "https://console.developers.google.com/iam-admin/iam/project?project=development-449400"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes. [reason: "USER_PROJECT_DENIED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "development-449400"
+}
+metadata {
+  key: "consumer"
+  value: "projects/development-449400"
+}
+, locale: "en-US"
+message: "Caller does not have required permission to use project development-449400. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam/project?project=development-449400 and then retry. Propagation of the new permission may take a few minutes."
+, links {
+  description: "Google developer console IAM admin"
+  url: "https://console.developers.google.com/iam-admin/iam/project?project=development-449400"
+}
+]
+2025-05-04 20:06:47,304 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:06:47,308 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:06:47,308 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:07:29,046 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:07:29,046 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:07:29,067 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:07:29,068 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:07:29,068 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:07:30,941 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: 403 Vertex AI API has not been used in project ai-team-458821 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "SERVICE_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "serviceTitle"
+  value: "Vertex AI API"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+metadata {
+  key: "activationUrl"
+  value: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821"
+}
+, locale: "en-US"
+message: "Vertex AI API has not been used in project ai-team-458821 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console API activation"
+  url: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 Vertex AI API has not been used in project ai-team-458821 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "SERVICE_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "serviceTitle"
+  value: "Vertex AI API"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+metadata {
+  key: "activationUrl"
+  value: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821"
+}
+, locale: "en-US"
+message: "Vertex AI API has not been used in project ai-team-458821 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console API activation"
+  url: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821"
+}
+]
+2025-05-04 20:07:30,947 - agent.cli - ERROR - CLI Initialization failed: 403 Vertex AI API has not been used in project ai-team-458821 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "SERVICE_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "serviceTitle"
+  value: "Vertex AI API"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+metadata {
+  key: "activationUrl"
+  value: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821"
+}
+, locale: "en-US"
+message: "Vertex AI API has not been used in project ai-team-458821 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console API activation"
+  url: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 Vertex AI API has not been used in project ai-team-458821 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "SERVICE_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "serviceTitle"
+  value: "Vertex AI API"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+metadata {
+  key: "activationUrl"
+  value: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821"
+}
+, locale: "en-US"
+message: "Vertex AI API has not been used in project ai-team-458821 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console API activation"
+  url: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ai-team-458821"
+}
+]
+2025-05-04 20:07:30,951 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:07:30,955 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:07:30,955 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:14:51,763 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:14:51,763 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:14:51,784 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:14:51,784 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:14:51,784 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:14:53,488 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:14:53,494 - agent.cli - ERROR - CLI Initialization failed: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:14:53,497 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:14:53,501 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:14:53,501 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:17:55,478 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:17:55,478 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:17:55,499 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:17:55,499 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:17:55,500 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:17:57,205 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:17:57,211 - agent.cli - ERROR - CLI Initialization failed: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:17:57,214 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:17:57,218 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:17:57,218 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:19:44,888 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:19:44,888 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:19:44,909 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:19:44,909 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:19:44,910 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:19:46,605 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:19:46,611 - agent.cli - ERROR - CLI Initialization failed: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:19:46,614 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:19:46,618 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:19:46,618 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:22:12,805 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:22:12,805 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:22:12,826 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:22:12,826 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:22:12,827 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:22:14,536 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:22:14,542 - agent.cli - ERROR - CLI Initialization failed: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:22:14,545 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:22:14,549 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:22:14,549 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:27:19,668 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:27:19,668 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:27:19,689 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:27:19,690 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:27:19,690 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:27:21,498 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:27:21,504 - agent.cli - ERROR - CLI Initialization failed: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:27:21,507 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:27:21,510 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:27:21,510 - agent.cli - INFO - CLI resources closed.
+2025-05-04 20:28:16,652 - agent.cli - INFO - Initializing CLI services...
+2025-05-04 20:28:16,652 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-04 20:28:16,673 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-04 20:28:16,674 - agents.llm.vertex_gemini_provider - INFO - Vertex AI initialized for project 'ai-team-458821' in location 'us-central1'
+2025-05-04 20:28:16,674 - agents.llm.vertex_gemini_provider - INFO - Loaded Gemini model: gemini-1.5-flash-001
+2025-05-04 20:28:18,398 - agents.llm.vertex_gemini_provider - ERROR - Failed to load embedding model text-embedding-004: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:28:18,404 - agent.cli - ERROR - CLI Initialization failed: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 77, in initialize
+    self.llm_provider = VertexGeminiProvider()
+                        ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/../../agents/llm/vertex_gemini_provider.py", line 79, in __init__
+    self.embedding_model = TextEmbeddingModel.from_pretrained(
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.embedding_model_name
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 289, in from_pretrained
+    return _from_pretrained(interface_class=cls, model_name=model_name)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 206, in _from_pretrained
+    model_info = _get_model_info(
+        model_id=model_name,
+        schema_to_class_map={interface_class._INSTANCE_SCHEMA_URI: interface_class},
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/vertexai/_model_garden/_model_garden_models.py", line 122, in _get_model_info
+    _publisher_models._PublisherModel(  # pylint: disable=protected-access
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        resource_name=model_id
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )._gca_resource
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform/_publisher_models.py", line 77, in __init__
+    self._gca_resource = getattr(self.api_client, self._getter_method)(
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=full_resource_name, retry=base._DEFAULT_RETRY
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/cloud/aiplatform_v1/services/model_garden_service/client.py", line 876, in get_publisher_model
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry. [reason: "BILLING_DISABLED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "aiplatform.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "ai-team-458821"
+}
+metadata {
+  key: "consumer"
+  value: "projects/ai-team-458821"
+}
+, locale: "en-US"
+message: "This API method requires billing to be enabled. Please enable billing on project #ai-team-458821 by visiting https://console.developers.google.com/billing/enable?project=ai-team-458821 then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry."
+, links {
+  description: "Google developers console billing"
+  url: "https://console.developers.google.com/billing/enable?project=ai-team-458821"
+}
+]
+2025-05-04 20:28:18,407 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-04 20:28:18,411 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-04 20:28:18,411 - agent.cli - INFO - CLI resources closed.

@@ -8,11 +8,17 @@ from typing import Dict, List, Any, Optional
 # Third-party imports - ensure these are in your dependency file (e.g., pyproject.toml)
 try:
     from google.cloud import aiplatform
+
+    # Import GenerativeModel directly from vertexai namespace
+    from vertexai.generative_models import GenerativeModel
+
+    # Import TextEmbeddingModel
+    from vertexai.language_models import TextEmbeddingModel
     from google.auth import default
     from google.auth.exceptions import DefaultCredentialsError
 except ImportError:
     raise ImportError(
-        "google-cloud-aiplatform library not installed. Please install it: pip install google-cloud-aiplatform"
+        "google-cloud-aiplatform library not installed or vertexai namespace unavailable. Please install it: pip install google-cloud-aiplatform"
     )
 
 from .base import LLMProvider
@@ -57,7 +63,8 @@ class VertexGeminiProvider(LLMProvider):
 
         # Load the generative model
         try:
-            self.model_instance = aiplatform.GenerativeModel(self.model_name)
+            # Instantiate using the direct import
+            self.model_instance = GenerativeModel(self.model_name)
             logger.info(f"Loaded Gemini model: {self.model_name}")
         except Exception as e:
             logger.error(f"Failed to load model {self.model_name}: {e}", exc_info=True)
@@ -68,10 +75,9 @@ class VertexGeminiProvider(LLMProvider):
         # Check https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings for latest models
         self.embedding_model_name = "text-embedding-004"
         try:
-            self.embedding_model = (
-                aiplatform.language_models.TextEmbeddingModel.from_pretrained(
-                    self.embedding_model_name
-                )
+            # Use the direct import
+            self.embedding_model = TextEmbeddingModel.from_pretrained(
+                self.embedding_model_name
             )
             logger.info(f"Loaded embedding model: {self.embedding_model_name}")
         except Exception as e:
@@ -169,37 +175,83 @@ class VertexGeminiProvider(LLMProvider):
                     f"Unsupported role '{role}' in chat message, defaulting to 'user'."
                 )
                 role = "user"
+            # Use the Content class from vertexai.generative_models if needed
+            # Assuming the existing import works for now, might need adjustment
             history.append(
-                aiplatform.gapic.Content(
+                aiplatform.gapic.Content(  # Keep using aiplatform.gapic for now, might need change
                     role=role,
                     parts=[aiplatform.gapic.Part(text=msg.get("content", ""))],
                 )
             )
 
-        generation_config = aiplatform.GenerationConfig(
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-            stop_sequences=stop_sequences if stop_sequences else [],
-            top_p=top_p,
-            top_k=top_k,
-        )
+        generation_config_dict = {
+            "max_output_tokens": max_tokens,
+            "temperature": temperature,
+            "stop_sequences": stop_sequences if stop_sequences else [],
+            "top_p": top_p,
+            "top_k": top_k,
+        }
+        # Filter out None values
+        generation_config_dict = {
+            k: v for k, v in generation_config_dict.items() if v is not None
+        }
 
         # System instruction (check specific model documentation for best usage)
+        # Import Content/Part from vertexai.generative_models
+        try:
+            from vertexai.generative_models import Content, Part
+        except ImportError:
+            # Fallback or error if direct import fails (shouldn't with 1.91.0)
+            logger.error(
+                "Failed to import Content/Part from vertexai.generative_models"
+            )
+            raise
+
         system_instruction_content = None
         if system_message:
-            system_instruction_content = aiplatform.gapic.Content(
-                role="system", parts=[aiplatform.gapic.Part(text=system_message)]
+            system_instruction_content = Content(
+                role="system", parts=[Part.from_text(system_message)]
             )
-            # Note: Some models might expect system message as first 'user' message if system_instruction isn't supported
 
         try:
             logger.debug(
                 f"Generating chat completion with {len(history)} history messages."
             )
+            # Use the new GenerationConfig from vertexai.generative_models
+            try:
+                from vertexai.generative_models import GenerationConfig
+            except ImportError:
+                logger.error(
+                    "Failed to import GenerationConfig from vertexai.generative_models"
+                )
+                raise
+
+            generation_config = GenerationConfig(**generation_config_dict)
+
+            # Convert history messages to new Content/Part format if necessary
+            converted_history = []
+            for msg_content in history:
+                # Assuming msg_content is currently aiplatform.gapic.Content
+                # Adapt this based on actual type if different
+                if hasattr(msg_content, "role") and hasattr(msg_content, "parts"):
+                    # Extract text from the first part (assuming simple text messages)
+                    text_content = (
+                        msg_content.parts[0].text if msg_content.parts else ""
+                    )
+                    converted_history.append(
+                        Content(
+                            role=msg_content.role, parts=[Part.from_text(text_content)]
+                        )
+                    )
+                else:
+                    logger.warning(
+                        f"Skipping conversion of unexpected history item: {type(msg_content)}"
+                    )
+
             response = await self.model_instance.generate_content_async(
-                history,  # Send the whole history
+                converted_history,  # Send the converted history
                 generation_config=generation_config,
-                system_instruction=system_instruction_content,  # Pass system instruction if applicable
+                system_instruction=system_instruction_content,  # Pass system instruction here
             )
             logger.debug("Chat completion generated successfully.")
             return response.text if hasattr(response, "text") else ""
