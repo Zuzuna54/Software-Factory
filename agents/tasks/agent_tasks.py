@@ -14,9 +14,7 @@ from celery.utils.log import get_task_logger
 from ..db.postgres import PostgresClient
 from ..specialized.product_manager import ProductManagerAgent
 from ..specialized.scrum_master import ScrumMasterAgent
-from ..llm.vertex_gemini_provider import (
-    VertexGeminiProvider,
-)  # Using VertexGeminiProvider
+from ..llm import GeminiApiProvider
 from ..memory.vector_memory import EnhancedVectorMemory
 from ..communication.protocol import (
     CommunicationProtocol,
@@ -53,7 +51,7 @@ async def _initialize_components() -> Dict[str, Any]:
 
     # Use VertexGeminiProvider as per Iteration 1 implementation
     # Requires GOOGLE_APPLICATION_CREDENTIALS and potentially other env vars
-    llm_provider = VertexGeminiProvider()
+    llm_provider = GeminiApiProvider()
 
     vector_memory = EnhancedVectorMemory(db_client=db_client)
     await vector_memory.initialize()

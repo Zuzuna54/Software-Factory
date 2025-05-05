@@ -10,11 +10,14 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 import uuid  # Import uuid
 
+# Add dotenv import
+from dotenv import load_dotenv
+
 # Local imports (adjust as needed)
 try:
     from ..base_agent import BaseAgent
     from ..db.postgres import PostgresClient
-    from ..llm.vertex_gemini_provider import VertexGeminiProvider
+    from ..llm.vertex_gemini_provider import GeminiApiProvider
     from ..memory.vector_memory import EnhancedVectorMemory  # Use EnhancedVectorMemory
     from ..communication.protocol import (
         CommunicationProtocol,
@@ -26,7 +29,7 @@ except ImportError:
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
     from agents.base_agent import BaseAgent
     from agents.db.postgres import PostgresClient
-    from agents.llm.vertex_gemini_provider import VertexGeminiProvider
+    from agents.llm.vertex_gemini_provider import GeminiApiProvider
     from agents.memory.vector_memory import EnhancedVectorMemory
     from agents.communication.protocol import (
         CommunicationProtocol,
@@ -54,7 +57,7 @@ class AgentCLI:
 
     def __init__(self):
         self.db_client: Optional[PostgresClient] = None
-        self.llm_provider: Optional[VertexGeminiProvider] = None
+        self.llm_provider: Optional[GeminiApiProvider] = None
         self.vector_memory: Optional[EnhancedVectorMemory] = None
         self.comm_protocol: CommunicationProtocol = CommunicationProtocol()
         self.agent_factory: Optional[AgentFactory] = (
@@ -67,17 +70,36 @@ class AgentCLI:
         """Initialize the CLI and required services."""
         if self._initialized:
             return
+
+        # Explicitly load .env from the project root
+        project_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )  # Get project root (Software Factory)
+        dotenv_path = os.path.join(project_root, ".env")
+        loaded = load_dotenv(dotenv_path=dotenv_path, override=True)
+        if loaded:
+            logger.info(f"Loaded environment variables from: {dotenv_path}")
+        else:
+            logger.warning(f"Could not find or load .env file at: {dotenv_path}")
+
         logger.info("Initializing CLI services...")
         try:
             # Initialize database client
             self.db_client = PostgresClient()
             await self.db_client.initialize()
 
-            # Initialize LLM provider
-            self.llm_provider = VertexGeminiProvider()
+            # Initialize LLM provider using the new class
+            # It will now read the GEMINI_API_KEY loaded from .env
+            self.llm_provider = GeminiApiProvider()
 
             # Initialize vector memory
-            self.vector_memory = EnhancedVectorMemory(self.db_client)
+            # Note: EnhancedVectorMemory might need llm_provider for embeddings.
+            # The current GeminiApiProvider still tries to use Vertex for embeddings,
+            # so this might still fail or attempt Vertex calls if not handled.
+            # Remove the llm_provider argument as it's not accepted by the constructor
+            self.vector_memory = EnhancedVectorMemory(
+                self.db_client
+            )  # Pass only db_client
             await self.vector_memory.initialize()
 
             # Initialize Agent Factory with shared dependencies
@@ -345,7 +367,7 @@ class AgentCLI:
                     logger.debug(f"Stored embedding for message {message_id}")
                 else:
                     logger.warning(
-                        f"Failed to generate embedding for message {message_id}"
+                        f"Failed to generate embedding for message {message_id} (using LLM provider: {type(self.llm_provider).__name__})"
                     )
             except Exception as e:
                 logger.error(

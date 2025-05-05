@@ -1,0 +1,20 @@
+
+
+# Ignore all files in the .venv directory
+.venv/
+
+# Ignore all files in the .git directory
+.git/
+
+# Ignore all files in the .idea directory
+.idea/
+
+# Ignore all files in the .vscode directory
+.vscode/
+
+# node_modules
+node_modules/
+
+# dist
+dist/
+

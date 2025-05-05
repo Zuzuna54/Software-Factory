@@ -25,7 +25,7 @@ CREATE TABLE agent_messages (
     related_task_id UUID, -- Optional reference to task
     metadata JSONB, -- Additional structured data
     parent_message_id UUID REFERENCES agent_messages(message_id), -- For threading
-    context_vector VECTOR(1536) -- For semantic search of message content
+    context_vector HALFVEC(3072) -- Use HALFVEC for >2000 dims
 );
 
 -- Agent Activities and Decisions
@@ -57,7 +57,7 @@ CREATE TABLE artifacts (
     status VARCHAR(50) NOT NULL,
     metadata JSONB, -- Additional properties
     version INTEGER NOT NULL DEFAULT 1,
-    content_vector VECTOR(1536) -- For semantic search
+    content_vector HALFVEC(3072) -- Use HALFVEC for >2000 dims
 );
 
 -- Tasks and Assignments
@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS enhanced_vector_storage (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- Changed from SERIAL to UUID
     entity_type VARCHAR(50) NOT NULL,
     entity_id VARCHAR(255) NOT NULL,
-    embedding VECTOR(1536) NOT NULL,
+    embedding HALFVEC(3072) NOT NULL, -- Use HALFVEC for >2000 dims
     content TEXT,
     metadata JSONB,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -192,8 +192,9 @@ ON enhanced_vector_storage(entity_type);
 CREATE INDEX IF NOT EXISTS idx_enhanced_vector_tags
 ON enhanced_vector_storage USING GIN(tags);
 
+-- Use HNSW index type and halfvec operator class for high-dimensional halfvec
 CREATE INDEX IF NOT EXISTS idx_enhanced_vector_embedding
-ON enhanced_vector_storage USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+ON enhanced_vector_storage USING hnsw (embedding halfvec_cosine_ops);
 
 -- Indexes for Vector Relationships (Iteration 4)
 CREATE INDEX IF NOT EXISTS idx_vector_relationships_source

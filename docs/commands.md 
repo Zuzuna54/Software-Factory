@@ -1,0 +1,3 @@
+-- We need to run the Django migrate command. This will create the necessary tables like django_migrations, django_celery_beat_*, etc., in your new database without affecting the tables we already created using schema.sql.
+source .venv/bin/activate && export DATABASE_URL='postgresql://agent_user:agent_password@localhost:5432/agent_team' && python -m django migrate --settings=agents.config.settings
+

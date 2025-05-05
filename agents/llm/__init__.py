@@ -1,7 +1,9 @@
 # agents/llm/__init__.py
 # This file makes Python treat the agents/llm directory as a package.
 
-from .base import LLMProvider
-from .vertex_gemini_provider import VertexGeminiProvider
+"""LLM providers package."""
 
-__all__ = ["LLMProvider", "VertexGeminiProvider"]
+from .base import LLMProvider
+from .vertex_gemini_provider import GeminiApiProvider
+
+__all__ = ["LLMProvider", "GeminiApiProvider"]

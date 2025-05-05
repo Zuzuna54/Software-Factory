@@ -1,109 +1,162 @@
-# agents/llm/vertex_gemini_provider.py
+# agents/llm/gemini_api_provider.py # Renamed file conceptually
 
 import os
 import json
 import logging
 from typing import Dict, List, Any, Optional
+import asyncio  # Added for async sleep
 
-# Third-party imports - ensure these are in your dependency file (e.g., pyproject.toml)
+# Third-party imports
 try:
+    # Keep Vertex AI imports for embeddings/function calling for now
     from google.cloud import aiplatform
-
-    # Import GenerativeModel directly from vertexai namespace
-    from vertexai.generative_models import GenerativeModel
-
-    # Import TextEmbeddingModel
     from vertexai.language_models import TextEmbeddingModel
     from google.auth import default
     from google.auth.exceptions import DefaultCredentialsError
-except ImportError:
+
+    # Import for direct Gemini API access
+    import google.generativeai as genai
+except ImportError as e:
     raise ImportError(
-        "google-cloud-aiplatform library not installed or vertexai namespace unavailable. Please install it: pip install google-cloud-aiplatform"
+        f"Required Google libraries not installed. Please install google-cloud-aiplatform and google-generativeai: {e}"
     )
 
 from .base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
+# Max retries for API calls
+MAX_RETRIES = 3
+INITIAL_BACKOFF = 1  # seconds
 
-class VertexGeminiProvider(LLMProvider):
-    """Google Vertex AI Gemini LLM provider."""
+
+class GeminiApiProvider(LLMProvider):
+    """Google Gemini API LLM provider (using API Key)."""
 
     def __init__(
         self,
-        model_name: str = "gemini-1.5-flash-001",
-        project: Optional[str] = None,
-        location: Optional[str] = "us-central1",
+        model_name: str = "gemini-1.5-flash-001",  # Use appropriate model for genai
+        embedding_model_name: str = "text-embedding-004",  # Kept for Vertex path
+        api_key_env_var: str = "GEMINI_API_KEY",
     ):
         """
-        Initializes the Vertex AI Gemini provider.
+        Initializes the Google Gemini API provider.
 
         Args:
-            model_name: The name of the Gemini model to use (e.g., "gemini-1.5-flash-001", "gemini-1.5-pro-001").
-            project: Google Cloud project ID. Tries to infer from environment if None.
-            location: Google Cloud location. Defaults to "us-central1".
+            model_name: The name of the Gemini model to use (e.g., "gemini-1.5-flash-001").
+            embedding_model_name: The name of the Vertex embedding model (kept for compatibility, but likely fails).
+            api_key_env_var: The environment variable containing the Gemini API key.
         """
-        self.project = project or self._get_project_id()
-        self.location = location
-        self.model_name = model_name
-        if not self.project:
+        api_key = os.environ.get(api_key_env_var)
+        if not api_key:
             raise ValueError(
-                "Google Cloud project ID could not be determined. Please set GOOGLE_CLOUD_PROJECT environment variable or pass the project parameter."
+                f"API key environment variable '{api_key_env_var}' not set."
             )
 
         try:
-            # Initialize Vertex AI client
-            aiplatform.init(project=self.project, location=self.location)
-            logger.info(
-                f"Vertex AI initialized for project '{self.project}' in location '{self.location}'"
-            )
-        except Exception as e:
-            logger.error(f"Failed to initialize Vertex AI: {e}", exc_info=True)
-            raise
-
-        # Load the generative model
-        try:
-            # Instantiate using the direct import
-            self.model_instance = GenerativeModel(self.model_name)
-            logger.info(f"Loaded Gemini model: {self.model_name}")
-        except Exception as e:
-            logger.error(f"Failed to load model {self.model_name}: {e}", exc_info=True)
-            raise
-
-        # Load the embedding model (use a specific, recommended version)
-        # Note: Models like text-embedding-004 are generally recommended.
-        # Check https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings for latest models
-        self.embedding_model_name = "text-embedding-004"
-        try:
-            # Use the direct import
-            self.embedding_model = TextEmbeddingModel.from_pretrained(
-                self.embedding_model_name
-            )
-            logger.info(f"Loaded embedding model: {self.embedding_model_name}")
+            genai.configure(api_key=api_key)
+            logger.info("Configured Google Generative AI SDK with API key.")
         except Exception as e:
             logger.error(
-                f"Failed to load embedding model {self.embedding_model_name}: {e}",
-                exc_info=True,
+                f"Failed to configure Google Generative AI SDK: {e}", exc_info=True
             )
-            # Decide if this is critical - maybe allow operation without embeddings?
-            # For now, let's raise it.
             raise
 
+        self.model_name = model_name
+        self.embedding_model_name = embedding_model_name  # Store for Vertex path
+
+        # Load the generative model via genai
+        try:
+            self.model_instance = genai.GenerativeModel(self.model_name)
+            logger.info(f"Initialized Gemini API model: {self.model_name}")
+        except Exception as e:
+            logger.error(
+                f"Failed to initialize genai model {self.model_name}: {e}",
+                exc_info=True,
+            )
+            raise
+
+        # --- Attempt to load Vertex embedding model (kept for now, will likely fail) ---
+        self.embedding_model = None
+        try:
+            # This part still requires Vertex AI setup (project, location, permissions, billing)
+            # It's kept here temporarily to avoid breaking dependent code immediately,
+            # but needs to be addressed (either fix Vertex setup or migrate embeddings).
+            project_id = self._get_project_id()
+            location = "us-central1"  # Default or configurable
+            if project_id:
+                aiplatform.init(project=project_id, location=location)
+                logger.info(
+                    f"Vertex AI initialized for embedding model: project '{project_id}', location '{location}'"
+                )
+                self.embedding_model = TextEmbeddingModel.from_pretrained(
+                    self.embedding_model_name
+                )
+                logger.info(
+                    f"Loaded Vertex embedding model: {self.embedding_model_name}"
+                )
+            else:
+                logger.warning(
+                    "Could not determine project ID for Vertex AI embedding model. Embeddings will likely fail."
+                )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to load Vertex embedding model {self.embedding_model_name} (this might be expected if Vertex setup is incomplete): {e}",
+                # exc_info=True # Reduce noise for expected failure
+            )
+            self.embedding_model = None  # Ensure it's None if loading fails
+        # --- End of Vertex embedding model loading attempt ---
+
     def _get_project_id(self) -> Optional[str]:
-        """Helper to get project ID from environment or ADC."""
+        """Helper to get project ID from environment or ADC (for Vertex embedding path)."""
         project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
         if project_id:
             return project_id
         try:
             _, project_id = default()
             if project_id:
-                logger.info(f"Inferred Google Cloud project ID: {project_id}")
+                logger.info(
+                    f"Inferred Google Cloud project ID for Vertex: {project_id}"
+                )
                 return project_id
         except DefaultCredentialsError:
             logger.warning(
-                "Could not determine Google Cloud project ID from Application Default Credentials."
+                "Could not determine Google Cloud project ID from Application Default Credentials for Vertex embeddings."
             )
         return None
+
+    async def _generate_with_retry(self, *args, **kwargs):
+        """Wrapper for generate_content_async with retry logic."""
+        retries = 0
+        backoff_time = INITIAL_BACKOFF
+        while retries < MAX_RETRIES:
+            try:
+                response = await self.model_instance.generate_content_async(
+                    *args, **kwargs
+                )
+                # Simple check if response seems valid (can be improved)
+                if hasattr(response, "text") or hasattr(response, "candidates"):
+                    return response
+                else:
+                    raise ValueError(
+                        "Received unexpected response format from Gemini API"
+                    )
+            except Exception as e:
+                retries += 1
+                logger.warning(
+                    f"Gemini API call failed (attempt {retries}/{MAX_RETRIES}): {e}"
+                )
+                if retries >= MAX_RETRIES:
+                    logger.error("Max retries reached for Gemini API call.")
+                    raise e  # Re-raise the last exception
+                # Exponential backoff with jitter
+                sleep_time = backoff_time + (os.urandom(1)[0] / 255.0)  # Add jitter
+                logger.info(f"Retrying in {sleep_time:.2f} seconds...")
+                await asyncio.sleep(sleep_time)
+                backoff_time *= 2  # Double the backoff time
+        # Should not be reached if MAX_RETRIES > 0
+        raise RuntimeError("Retry logic finished without success or final error.")
 
     async def generate_completion(
         self,
@@ -115,12 +168,10 @@ class VertexGeminiProvider(LLMProvider):
         top_p: Optional[float] = None,
         top_k: Optional[int] = None,
     ) -> str:
-        """Generate a text completion using Vertex AI Gemini."""
-        # Gemini API prefers combining system message and prompt for non-chat scenarios
-        # Or use the system_instruction parameter if available and appropriate for the model version
+        """Generate a text completion using Google Gemini API."""
         full_prompt = f"{system_message}\n\n{prompt}" if system_message else prompt
 
-        generation_config = aiplatform.GenerationConfig(
+        generation_config = genai.types.GenerationConfig(
             max_output_tokens=max_tokens,
             temperature=temperature,
             stop_sequences=stop_sequences if stop_sequences else [],
@@ -130,19 +181,18 @@ class VertexGeminiProvider(LLMProvider):
 
         try:
             logger.debug(
-                f"Generating completion for prompt (first 100 chars): {full_prompt[:100]}..."
+                f"Generating completion via Gemini API (first 100 chars): {full_prompt[:100]}..."
             )
-            response = await self.model_instance.generate_content_async(
+            response = await self._generate_with_retry(
                 full_prompt, generation_config=generation_config
             )
-            logger.debug("Completion generated successfully.")
-            # Ensure response.text exists and handle potential errors/empty responses
-            return response.text if hasattr(response, "text") else ""
+            logger.debug("Completion generated successfully via Gemini API.")
+            # Safely access text, handling potential lack of response or empty text
+            return response.text if hasattr(response, "text") and response.text else ""
         except Exception as e:
             logger.error(
-                f"Error during Gemini completion generation: {e}", exc_info=True
+                f"Error during Gemini API completion generation: {e}", exc_info=True
             )
-            # Depending on desired behavior, could return empty string or re-raise
             return f"Error generating completion: {e}"
 
     async def generate_chat_completion(
@@ -155,213 +205,301 @@ class VertexGeminiProvider(LLMProvider):
         top_p: Optional[float] = None,
         top_k: Optional[int] = None,
     ) -> str:
-        """Generate a chat completion using Vertex AI Gemini."""
+        """Generate a chat completion using Google Gemini API."""
 
-        # Convert messages to Vertex AI Content format
-        history = []
-        for msg in messages:
-            role = msg.get("role", "user").lower()
-            # Gemini uses 'user' and 'model' roles
-            if (
-                role == "system"
-            ):  # Handle system message separately if model supports it or prepend
-                if system_message:
-                    system_message += "\n" + msg.get("content", "")
-                else:
-                    system_message = msg.get("content", "")
-                continue  # Skip adding system message to history if handled by system_instruction
-            if role not in ["user", "model"]:
-                logger.warning(
-                    f"Unsupported role '{role}' in chat message, defaulting to 'user'."
-                )
-                role = "user"
-            # Use the Content class from vertexai.generative_models if needed
-            # Assuming the existing import works for now, might need adjustment
-            history.append(
-                aiplatform.gapic.Content(  # Keep using aiplatform.gapic for now, might need change
-                    role=role,
-                    parts=[aiplatform.gapic.Part(text=msg.get("content", ""))],
-                )
-            )
-
-        generation_config_dict = {
-            "max_output_tokens": max_tokens,
-            "temperature": temperature,
-            "stop_sequences": stop_sequences if stop_sequences else [],
-            "top_p": top_p,
-            "top_k": top_k,
-        }
-        # Filter out None values
-        generation_config_dict = {
-            k: v for k, v in generation_config_dict.items() if v is not None
-        }
-
-        # System instruction (check specific model documentation for best usage)
-        # Import Content/Part from vertexai.generative_models
-        try:
-            from vertexai.generative_models import Content, Part
-        except ImportError:
-            # Fallback or error if direct import fails (shouldn't with 1.91.0)
-            logger.error(
-                "Failed to import Content/Part from vertexai.generative_models"
-            )
-            raise
-
-        system_instruction_content = None
+        # Format messages for google-generativeai
+        # It expects a list of {'role': 'user'/'model', 'parts': [textpart]}
+        formatted_messages = []
         if system_message:
-            system_instruction_content = Content(
-                role="system", parts=[Part.from_text(system_message)]
+            # Prepend system message as the first part of the first 'user' message
+            # or handle using system_instruction if supported directly by the model/SDK version.
+            # For simplicity here, we prepend to the first user message content.
+            found_first_user = False
+            temp_messages = []
+            for msg in messages:
+                role = msg.get("role", "user").lower()
+                content = msg.get("content", "")
+                if role == "system":  # Combine system messages
+                    system_message += "\n" + content
+                    continue
+                # Map roles (e.g., 'assistant' -> 'model')
+                if role == "assistant":
+                    role = "model"
+                if role not in ["user", "model"]:
+                    logger.warning(f"Unsupported role '{role}', mapping to 'user'.")
+                    role = "user"
+                if role == "user" and not found_first_user:
+                    content = f"{system_message}\n\n{content}"
+                    found_first_user = True
+                temp_messages.append({"role": role, "parts": [content]})
+
+            if not found_first_user and system_message:
+                # If no user message was found, add system message as initial user message
+                formatted_messages.append({"role": "user", "parts": [system_message]})
+
+            formatted_messages.extend(temp_messages)
+
+        else:
+            # No system message, just format existing messages
+            for msg in messages:
+                role = msg.get("role", "user").lower()
+                content = msg.get("content", "")
+                if role == "assistant":
+                    role = "model"
+                if role == "system":
+                    continue  # Skip system if system_message is None
+                if role not in ["user", "model"]:
+                    role = "user"
+                formatted_messages.append({"role": role, "parts": [content]})
+
+        # Ensure conversation starts with a 'user' role if needed
+        if formatted_messages and formatted_messages[0]["role"] != "user":
+            logger.warning(
+                "Chat history does not start with user role, prepending empty user message."
             )
+            formatted_messages.insert(0, {"role": "user", "parts": [""]})
+        # Ensure alternating roles (simple check, might need more robustness)
+        for i in range(len(formatted_messages) - 1):
+            if formatted_messages[i]["role"] == formatted_messages[i + 1]["role"]:
+                logger.warning(
+                    f"Consecutive messages with role '{formatted_messages[i]['role']}' found at index {i}. API might error."
+                )
+                # Consider inserting an empty message of the opposite role if required
+
+        generation_config = genai.types.GenerationConfig(
+            max_output_tokens=max_tokens,
+            temperature=temperature,
+            stop_sequences=stop_sequences if stop_sequences else [],
+            top_p=top_p,
+            top_k=top_k,
+        )
 
         try:
             logger.debug(
-                f"Generating chat completion with {len(history)} history messages."
+                f"Generating chat completion via Gemini API with {len(formatted_messages)} messages."
             )
-            # Use the new GenerationConfig from vertexai.generative_models
-            try:
-                from vertexai.generative_models import GenerationConfig
-            except ImportError:
-                logger.error(
-                    "Failed to import GenerationConfig from vertexai.generative_models"
-                )
-                raise
-
-            generation_config = GenerationConfig(**generation_config_dict)
-
-            # Convert history messages to new Content/Part format if necessary
-            converted_history = []
-            for msg_content in history:
-                # Assuming msg_content is currently aiplatform.gapic.Content
-                # Adapt this based on actual type if different
-                if hasattr(msg_content, "role") and hasattr(msg_content, "parts"):
-                    # Extract text from the first part (assuming simple text messages)
-                    text_content = (
-                        msg_content.parts[0].text if msg_content.parts else ""
-                    )
-                    converted_history.append(
-                        Content(
-                            role=msg_content.role, parts=[Part.from_text(text_content)]
-                        )
-                    )
-                else:
-                    logger.warning(
-                        f"Skipping conversion of unexpected history item: {type(msg_content)}"
-                    )
-
-            response = await self.model_instance.generate_content_async(
-                converted_history,  # Send the converted history
+            # Use the chat interface implicitly by sending history
+            response = await self._generate_with_retry(
+                formatted_messages,
                 generation_config=generation_config,
-                system_instruction=system_instruction_content,  # Pass system instruction here
             )
-            logger.debug("Chat completion generated successfully.")
-            return response.text if hasattr(response, "text") else ""
+            logger.debug("Chat completion generated successfully via Gemini API.")
+            return response.text if hasattr(response, "text") and response.text else ""
         except Exception as e:
+            # Log the formatted messages for debugging if error occurs
+            try:
+                logger.error(
+                    f"Formatted messages leading to error: {json.dumps(formatted_messages)}"
+                )
+            except TypeError:
+                logger.error("Could not serialize formatted messages for logging.")
             logger.error(
-                f"Error during Gemini chat completion generation: {e}", exc_info=True
+                f"Error during Gemini API chat completion generation: {e}",
+                exc_info=True,
             )
             return f"Error generating chat completion: {e}"
 
+    # --- Embedding Generation (Now uses Gemini API) ---
     async def generate_embeddings(
         self, text: str, task_type: str = "RETRIEVAL_DOCUMENT"
     ) -> List[float]:
         """
-        Generate embeddings using Vertex AI Text Embedding Model.
+        Generate embeddings using the Google Gemini API (genai package).
 
         Args:
             text: The text to embed.
-            task_type: The task type for the embedding (e.g., RETRIEVAL_QUERY, RETRIEVAL_DOCUMENT,
-                       SEMANTIC_SIMILARITY, CLASSIFICATION, CLUSTERING). Defaults to RETRIEVAL_DOCUMENT.
+            task_type: The task type for the embedding (e.g., RETRIEVAL_QUERY, RETRIEVAL_DOCUMENT).
+                       Supported values depend on the specific model used via genai.
 
         Returns:
-            A list of floats representing the embedding.
+            A list of floats representing the embedding, or empty list on failure.
         """
-        if not self.embedding_model:
-            logger.error("Embedding model not initialized.")
-            return []
-        try:
-            logger.debug(
-                f"Generating embedding for text (first 50 chars): {text[:50]}..."
+        # Map task_type to the format expected by google.generativeai (if needed)
+        # Based on docs, the TaskType enum strings seem compatible directly
+        # Ensure the model selected supports the given task_type
+        valid_task_types = [
+            "RETRIEVAL_QUERY",
+            "RETRIEVAL_DOCUMENT",
+            "SEMANTIC_SIMILARITY",
+            "CLASSIFICATION",
+            "CLUSTERING",
+            # Add others if supported by the specific genai model
+        ]
+        if task_type not in valid_task_types:
+            logger.warning(
+                f"Unsupported task_type '{task_type}' for embedding model. Defaulting to RETRIEVAL_DOCUMENT. Check genai documentation for supported types."
             )
-            # The API expects a list of texts
-            instances = [{"content": text, "task_type": task_type}]
-            embeddings = await self.embedding_model.get_embeddings_async(instances)
-            # Return the first (and only) embedding's values
-            if embeddings and embeddings[0].values:
-                logger.debug("Embedding generated successfully.")
-                return embeddings[0].values
-            else:
-                logger.warning("Embedding generation returned no values.")
-                return []
-        except Exception as e:
-            logger.error(f"Error generating embedding: {e}", exc_info=True)
-            return []
+            task_type = "RETRIEVAL_DOCUMENT"
 
+        embedding_model_name = (
+            "models/gemini-embedding-exp-03-07"  # Explicitly use the 3072-dim model
+        )
+
+        retries = 0
+        backoff_time = INITIAL_BACKOFF
+        while retries < MAX_RETRIES:
+            try:
+                logger.debug(
+                    f"Generating Gemini API embedding for text (first 50 chars): {text[:50]}... using model {embedding_model_name}"
+                )
+
+                result = await genai.embed_content_async(
+                    model=embedding_model_name,
+                    content=text,
+                    task_type=task_type,
+                )
+
+                # Extract the embedding
+                if result and "embedding" in result and result["embedding"]:
+                    logger.debug(
+                        f"Gemini API embedding generated successfully (vector dim: {len(result['embedding'])})"
+                    )
+                    # Ensure the dimension matches expectation
+                    if len(result["embedding"]) != 3072:
+                        logger.error(
+                            f"CRITICAL: Embedding dimension mismatch! Expected 3072, got {len(result['embedding'])} from {embedding_model_name}"
+                        )
+                        return []  # Return empty on mismatch
+                    return result["embedding"]
+                else:
+                    logger.warning(
+                        f"Gemini API embedding generation returned no embedding for model {embedding_model_name}."
+                    )
+                    return []  # Return empty list if embedding is missing
+
+            except Exception as e:
+                retries += 1
+                logger.warning(
+                    f"Gemini API embedding call failed (attempt {retries}/{MAX_RETRIES}): {e}"
+                )
+                if retries >= MAX_RETRIES:
+                    logger.error(
+                        f"Max retries reached for Gemini API embedding call.",
+                        exc_info=True,
+                    )
+                    return []  # Return empty list on persistent failure
+
+                # Exponential backoff with jitter
+                sleep_time = backoff_time + (os.urandom(1)[0] / 255.0)
+                logger.info(f"Retrying embedding in {sleep_time:.2f} seconds...")
+                await asyncio.sleep(sleep_time)
+                backoff_time *= 2
+
+        # Should not be reached if MAX_RETRIES > 0
+        logger.error(
+            "Embedding retry logic finished unexpectedly without success or error."
+        )
+        return []
+
+    # --- Function Calling (Still uses Vertex AI path/types) ---
     async def function_calling(
         self,
         messages: List[Dict[str, str]],
         functions: List[Dict[str, Any]],
-        temperature: float = 0.7,  # Temperature might affect function call quality/determinism
+        temperature: float = 0.7,
     ) -> Dict[str, Any]:
-        """Call functions based on Gemini reasoning."""
+        """Attempt function calling using the Gemini model.
+        NOTE: This currently still uses the Vertex AI SDK/gapic types for tools.
+              It might need significant changes if migrating fully to genai.
+        """
 
-        # Convert messages to Vertex AI Content format
-        history = []
+        # Convert messages for google-generativeai chat format
+        formatted_messages = []
+        system_message = None  # Extract system message if needed for genai model later
         for msg in messages:
             role = msg.get("role", "user").lower()
+            content = msg.get("content", "")
+            if role == "system":
+                system_message = (
+                    system_message + "\n" if system_message else ""
+                ) + content
+                continue
+            if role == "assistant":
+                role = "model"
             if role not in ["user", "model"]:
                 role = "user"
-            history.append(
-                aiplatform.gapic.Content(
-                    role=role,
-                    parts=[aiplatform.gapic.Part(text=msg.get("content", ""))],
-                )
-            )
+            formatted_messages.append({"role": role, "parts": [content]})
+        # TODO: Handle system message if genai model needs it differently for tool use
 
-        # Convert function definitions to Vertex AI Tool format
+        # Format functions/tools - KEEPING VERTEX/GAPIC FORMAT FOR NOW
+        # This will likely need changing for genai's tool format
         try:
+            # Convert function definitions to Vertex AI Tool format
+            # Ensure aiplatform.gapic types are available if this path is kept
+            from google.cloud import aiplatform as vertex_aiplatform_for_tools
+
             function_declarations = [
-                aiplatform.gapic.FunctionDeclaration(**func) for func in functions
+                vertex_aiplatform_for_tools.gapic.FunctionDeclaration(**func)
+                for func in functions
             ]
-            tools = [aiplatform.gapic.Tool(function_declarations=function_declarations)]
+            tools_vertex_format = [
+                vertex_aiplatform_for_tools.gapic.Tool(
+                    function_declarations=function_declarations
+                )
+            ]
+            logger.warning(
+                "Using Vertex/GAPIC format for tools - may need update for genai API."
+            )
         except Exception as e:
             logger.error(
-                f"Error formatting functions for Vertex AI: {e}", exc_info=True
+                f"Error formatting functions for Vertex AI Tool format: {e}",
+                exc_info=True,
             )
+            # Return error structure
             return {
                 "content": f"Error processing functions: {e}",
                 "function_name": None,
                 "function_args": None,
             }
 
-        generation_config = aiplatform.GenerationConfig(temperature=temperature)
+        generation_config = genai.types.GenerationConfig(temperature=temperature)
 
         try:
             logger.debug(
-                f"Attempting function call with {len(functions)} functions available."
-            )
-            # Send message with tools
-            response = await self.model_instance.generate_content_async(
-                history, generation_config=generation_config, tools=tools
+                f"Attempting function call via Gemini API with {len(functions)} functions."
             )
 
-            # Check for function call in response
+            # How genai handles tools might differ significantly. This is a placeholder.
+            # We pass the Vertex formatted tools here, which might not work as expected.
+            response = await self._generate_with_retry(
+                formatted_messages,
+                generation_config=generation_config,
+                tools=tools_vertex_format,  # <<< Passing Vertex tools to genai API - Likely needs change
+            )
+
+            # Process response (check genai's response format for function calls)
+            # This parsing logic is based on Vertex and likely needs updating for genai
             if response.candidates and response.candidates[0].content.parts:
                 part = response.candidates[0].content.parts[0]
+                # Check for function call according to genai's response structure
                 if hasattr(part, "function_call") and part.function_call.name:
                     function_call = part.function_call
-                    logger.info(f"Gemini requested function call: {function_call.name}")
-                    # Convert args Struct to dict
-                    args_dict = (
-                        type(function_call).to_dict(function_call).get("args", {})
+                    logger.info(
+                        f"Gemini API requested function call: {function_call.name}"
                     )
+                    # Args parsing might differ too
+                    args_dict = (
+                        function_call.args if hasattr(function_call, "args") else {}
+                    )
+                    # Convert args if they are not dict-like (check genai docs) - Placeholder
+                    if not isinstance(args_dict, dict):
+                        try:
+                            # Attempt conversion if needed, this depends heavily on genai's format
+                            args_dict = dict(args_dict)
+                        except Exception as conv_e:
+                            logger.error(
+                                f"Could not convert function call args to dict: {conv_e}"
+                            )
+                            args_dict = {}
+
                     return {
                         "function_name": function_call.name,
                         "function_args": args_dict,
-                        "content": "",  # Usually no text content when function is called
+                        "content": "",
                     }
 
-            # If no function call, return the text content
-            logger.debug("No function call requested by Gemini.")
+            # If no function call, return text content
+            logger.debug("No function call requested by Gemini API.")
             return {
                 "content": response.text if hasattr(response, "text") else "",
                 "function_name": None,
@@ -369,7 +507,9 @@ class VertexGeminiProvider(LLMProvider):
             }
 
         except Exception as e:
-            logger.error(f"Error during Gemini function calling: {e}", exc_info=True)
+            logger.error(
+                f"Error during Gemini API function calling attempt: {e}", exc_info=True
+            )
             return {
                 "content": f"Error during function call attempt: {e}",
                 "function_name": None,

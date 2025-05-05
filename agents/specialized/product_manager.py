@@ -16,20 +16,28 @@ class ProductManagerAgent(BaseAgent):
     into structured tasks and user stories.
     """
 
+    DEFAULT_CAPABILITIES = {
+        "can_define_requirements": True,
+        "can_prioritize_backlog": True,
+        "can_validate_features": True,
+    }
+
     def __init__(self, **kwargs):
-        super().__init__(
-            agent_type="product_manager",
-            agent_name="Product Manager",
-            capabilities={
-                "requirement_analysis": True,
-                "user_story_creation": True,
-                "prioritization": True,
-                "acceptance_criteria": True,
-                "project_vision": True,
-            },
-            **kwargs,
+        """Initialize the Product Manager Agent."""
+        # Merge default capabilities with any provided in kwargs
+        capabilities = self.DEFAULT_CAPABILITIES.copy()
+        if "capabilities" in kwargs:
+            capabilities.update(kwargs["capabilities"])
+        kwargs["capabilities"] = capabilities  # Update kwargs with merged capabilities
+
+        # Call superclass init, passing all arguments including the agent_type from kwargs
+        # Do NOT explicitly pass agent_type here, let kwargs handle it.
+        super().__init__(**kwargs)
+
+        # Use self.logger, which should be initialized by BaseAgent
+        self.logger.info(
+            f"ProductManagerAgent {self.agent_id} ({self.agent_name}) initialized."
         )
-        self.logger = logging.getLogger(f"agent.pm.{self.agent_id}")
         self.vector_memory: Optional[EnhancedVectorMemory] = self.vector_memory
 
     async def analyze_requirements(self, project_description: str) -> Dict[str, Any]:

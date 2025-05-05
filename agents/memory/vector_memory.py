@@ -13,8 +13,8 @@ from ..db.postgres import PostgresClient
 class EnhancedVectorMemory:
     """Enhanced vector-based memory system for semantic search using pgvector."""
 
-    # Assuming a fixed embedding dimension based on the blueprint/iteration 1
-    EMBEDDING_DIM = 1536
+    # Match the dimension specified in project overview and used by the embedding model
+    EMBEDDING_DIM = 3072
 
     def __init__(self, db_client: PostgresClient):
         if db_client is None:
@@ -59,10 +59,11 @@ class EnhancedVectorMemory:
                 """
                 )
 
+                # Use HNSW index type and halfvec operator class for high-dimensional halfvec
                 await self.db_client.execute(
                     f"""
                 CREATE INDEX IF NOT EXISTS idx_enhanced_vector_embedding
-                ON enhanced_vector_storage USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+                ON enhanced_vector_storage USING hnsw (embedding halfvec_cosine_ops);
                 """
                 )
 
@@ -153,7 +154,7 @@ class EnhancedVectorMemory:
             entity_type, entity_id, embedding, content,
             metadata, tags, updated_at
         )
-        VALUES ($1, $2, $3::vector({self.EMBEDDING_DIM}), $4, $5, $6, NOW())
+        VALUES ($1, $2, $3::halfvec({self.EMBEDDING_DIM}), $4, $5, $6, NOW())
         ON CONFLICT (entity_type, entity_id)
         DO UPDATE SET
             embedding = EXCLUDED.embedding,
@@ -165,11 +166,14 @@ class EnhancedVectorMemory:
         """
 
         try:
+            # Convert the embedding list to its string representation
+            embedding_str = str(embedding)
+
             result = await self.db_client.fetch_one(
                 query,
                 entity_type,
                 entity_id,
-                embedding,
+                embedding_str,
                 content,
                 json.dumps(metadata or {}),
                 tags or [],
@@ -221,8 +225,8 @@ class EnhancedVectorMemory:
             )
 
         # Build the query conditions
-        conditions = [f"1 - (embedding <=> $1::vector({self.EMBEDDING_DIM})) > $2"]
-        params: List[Any] = [query_embedding, threshold]
+        conditions = [f"1 - (embedding <=> $1::halfvec({self.EMBEDDING_DIM})) > $2"]
+        params: List[Any] = [str(query_embedding), threshold]
         param_idx = 3
 
         if entity_types:
@@ -253,7 +257,7 @@ class EnhancedVectorMemory:
         SELECT
             id, entity_type, entity_id, content,
             metadata, tags, created_at, updated_at,
-            1 - (embedding <=> $1::vector({self.EMBEDDING_DIM})) AS similarity
+            1 - (embedding <=> $1::halfvec({self.EMBEDDING_DIM})) AS similarity
         FROM
             enhanced_vector_storage
         WHERE

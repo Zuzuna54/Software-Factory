@@ -16,20 +16,26 @@ class ScrumMasterAgent(BaseAgent):
     managing task assignments, and tracking progress.
     """
 
+    DEFAULT_CAPABILITIES = {
+        "can_manage_sprints": True,
+        "can_facilitate_meetings": True,
+        "can_remove_impediments": True,
+    }
+
     def __init__(self, **kwargs):
-        super().__init__(
-            agent_type="scrum_master",
-            agent_name="Scrum Master",
-            capabilities={
-                "sprint_planning": True,
-                "task_assignment": True,
-                "progress_tracking": True,
-                "impediment_removal": True,
-                "meeting_facilitation": True,
-            },
-            **kwargs,
+        """Initialize the Scrum Master Agent."""
+        # Merge default capabilities
+        capabilities = self.DEFAULT_CAPABILITIES.copy()
+        if "capabilities" in kwargs:
+            capabilities.update(kwargs["capabilities"])
+        kwargs["capabilities"] = capabilities
+
+        # Call superclass init, letting kwargs handle agent_type
+        super().__init__(**kwargs)
+
+        self.logger.info(
+            f"ScrumMasterAgent {self.agent_id} ({self.agent_name}) initialized."
         )
-        self.logger = logging.getLogger(f"agent.sm.{self.agent_id}")
         self.sprint_id = None
         # Placeholder for ceremony and meeting modules - these should be injected or initialized
         self.ceremonies = kwargs.get("ceremonies_module", None)
