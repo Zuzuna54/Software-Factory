@@ -173,3 +173,220 @@ TypeError: agents.base_agent.BaseAgent.__init__() got multiple values for keywor
 2025-05-05 20:07:24,885 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
 2025-05-05 20:07:24,888 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
 2025-05-05 20:07:24,888 - agent.cli - INFO - CLI resources closed.
+2025-05-05 20:16:10,379 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-05 20:16:10,379 - agent.cli - INFO - Initializing CLI services...
+2025-05-05 20:16:10,379 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-05 20:16:10,396 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-05 20:16:10,396 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-05 20:16:10,396 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-05 20:16:10,396 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-05 20:16:10,401 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-05 20:16:10,401 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-05 20:16:10,401 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-05 20:16:10,403 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-05 20:16:10,406 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-05 20:16:10,406 - agent.cli - INFO - CLI resources closed.
+2025-05-05 20:16:29,577 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-05 20:16:29,578 - agent.cli - INFO - Initializing CLI services...
+2025-05-05 20:16:29,578 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-05 20:16:29,594 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-05 20:16:29,595 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-05 20:16:29,595 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-05 20:16:29,595 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-05 20:16:29,599 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-05 20:16:29,599 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-05 20:16:29,599 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-05 20:16:29,600 - agents.db.postgres - ERROR - Query fetch_all error: column "related_task_id" does not exist for query: 
+        SELECT
+            activity_id, timestamp, activity_type,
+            description, thought_...
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/db/postgres.py", line 146, in fetch_all
+    rows = await conn.fetch(query, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 690, in fetch
+    return await self._execute(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 1864, in _execute
+    result, _ = await self.__execute(
+                ^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 1961, in __execute
+    result, stmt = await self._do_execute(
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2004, in _do_execute
+    stmt = await self._get_statement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 432, in _get_statement
+    statement = await self._protocol.prepare(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "asyncpg/protocol/protocol.pyx", line 165, in prepare
+asyncpg.exceptions.UndefinedColumnError: column "related_task_id" does not exist
+2025-05-05 20:16:29,602 - agent.cli - ERROR - Failed to get activities for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4: column "related_task_id" does not exist
+Traceback (most recent call last):
+  File "/Users/giorgobg/Desktop/Software Factory/agents/cli/agent_cli.py", line 519, in get_agent_activities
+    results = await self.db_client.fetch_all(query, *params)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/agents/db/postgres.py", line 146, in fetch_all
+    rows = await conn.fetch(query, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 690, in fetch
+    return await self._execute(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 1864, in _execute
+    result, _ = await self.__execute(
+                ^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 1961, in __execute
+    result, stmt = await self._do_execute(
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2004, in _do_execute
+    stmt = await self._get_statement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/giorgobg/Desktop/Software Factory/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 432, in _get_statement
+    statement = await self._protocol.prepare(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "asyncpg/protocol/protocol.pyx", line 165, in prepare
+asyncpg.exceptions.UndefinedColumnError: column "related_task_id" does not exist
+2025-05-05 20:16:29,603 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-05 20:16:29,606 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-05 20:16:29,606 - agent.cli - INFO - CLI resources closed.
+2025-05-05 20:19:12,828 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-05 20:19:12,828 - agent.cli - INFO - Initializing CLI services...
+2025-05-05 20:19:12,828 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-05 20:19:12,866 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-05 20:19:12,867 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-05 20:19:12,867 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-05 20:19:12,867 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-05 20:19:12,872 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-05 20:19:12,872 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-05 20:19:12,872 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-05 20:19:12,875 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-05 20:19:12,878 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-05 20:19:12,878 - agent.cli - INFO - CLI resources closed.
+2025-05-05 20:19:31,902 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-05 20:19:31,903 - agent.cli - INFO - Initializing CLI services...
+2025-05-05 20:19:31,903 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-05 20:19:31,919 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-05 20:19:31,919 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-05 20:19:31,919 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-05 20:19:31,919 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-05 20:19:31,924 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-05 20:19:31,924 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-05 20:19:31,924 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-05 20:19:31,926 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-05 20:19:31,929 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-05 20:19:31,930 - agent.cli - INFO - CLI resources closed.
+2025-05-05 20:19:45,800 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-05 20:19:45,800 - agent.cli - INFO - Initializing CLI services...
+2025-05-05 20:19:45,800 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-05 20:19:45,818 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-05 20:19:45,818 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-05 20:19:45,818 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-05 20:19:45,818 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-05 20:19:45,822 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-05 20:19:45,822 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-05 20:19:45,822 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-05 20:19:46,332 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-05 20:19:46,335 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-05 20:19:46,336 - agent.cli - INFO - CLI resources closed.
+2025-05-05 20:23:21,242 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-05 20:23:21,242 - agent.cli - INFO - Initializing CLI services...
+2025-05-05 20:23:21,242 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-05 20:23:21,260 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-05 20:23:21,260 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-05 20:23:21,260 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-05 20:23:21,260 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-05 20:23:21,264 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-05 20:23:21,264 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-05 20:23:21,264 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-05 20:23:21,266 - agent.factory - INFO - Creating agent of type 'product_manager' with name 'Test PM'
+2025-05-05 20:23:21,266 - agent.product_manager.91295cef - INFO - ProductManagerAgent 91295cef-7bc3-43d8-9c80-5fa3503872b4 (Test PM) initialized.
+2025-05-05 20:23:21,266 - agent.factory - INFO - Successfully created agent 91295cef-7bc3-43d8-9c80-5fa3503872b4 (Test PM)
+2025-05-05 20:23:21,266 - agent.cli - INFO - Invoking analyze_requirements for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4...
+2025-05-05 20:23:21,269 - agent.product_manager.91295cef - INFO - Activity logged: bd1acd8f-7099-436f-bae5-c92799b8f612 (RequirementAnalysis) for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4
+2025-05-05 20:23:25,860 - agent.product_manager.91295cef - INFO - Activity logged: 7bd6a86f-0998-4f7a-9cf9-8c57a52bed3c (Thinking) for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4
+2025-05-05 20:23:25,860 - agent.logging.thought - INFO - Initializing ThoughtCapture system...
+2025-05-05 20:23:25,863 - agent.logging.thought - INFO - Thought capture system initialized successfully.
+2025-05-05 20:23:25,863 - agent.memory.enhanced_vector - INFO - Registered entity type: ThoughtProcess
+2025-05-05 20:23:25,863 - agent.logging.thought - INFO - Registered ThoughtProcess entity type with vector memory
+2025-05-05 20:23:26,360 - agent.logging.thought - INFO - Captured thought process: fc0a1739-60e8-48a6-b733-692c2e46c089
+2025-05-05 20:23:26,368 - agent.product_manager.91295cef - INFO - Activity logged: 4e76eb04-d146-4df8-8513-d34a11894950 (RequirementAnalysisComplete) for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4
+2025-05-05 20:23:26,368 - agent.cli - INFO - analyze_requirements completed for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4
+2025-05-05 20:23:26,369 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-05 20:23:26,373 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-05 20:23:26,373 - agent.cli - INFO - CLI resources closed.
+2025-05-05 20:24:57,391 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-05 20:24:57,391 - agent.cli - INFO - Initializing CLI services...
+2025-05-05 20:24:57,391 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-05 20:24:57,428 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-05 20:24:57,428 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-05 20:24:57,428 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-05 20:24:57,429 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-05 20:24:57,436 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-05 20:24:57,437 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-05 20:24:57,437 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-05 20:24:57,439 - agent.factory - INFO - Creating agent of type 'qa' with name 'Test QA'
+2025-05-05 20:24:57,439 - agent.qa.e5928260 - INFO - QAAgent e5928260-e95d-42e1-a267-3d886c726c0d (Test QA) initialized.
+2025-05-05 20:24:57,439 - agent.factory - INFO - Successfully created agent e5928260-e95d-42e1-a267-3d886c726c0d (Test QA)
+2025-05-05 20:24:57,439 - agent.cli - INFO - Invoking run_tests for agent e5928260-e95d-42e1-a267-3d886c726c0d with paths: None...
+2025-05-05 20:24:57,442 - agent.qa.e5928260 - INFO - Activity logged: 7c27befe-ee5f-4370-84f3-c4bbc9adf728 (TestExecution) for agent e5928260-e95d-42e1-a267-3d886c726c0d
+2025-05-05 20:24:58,760 - agent.qa.e5928260 - INFO - Activity logged: afccb9df-fabd-4957-b2d7-065d247b898d (TestResults) for agent e5928260-e95d-42e1-a267-3d886c726c0d
+2025-05-05 20:24:58,761 - agent.cli - INFO - run_tests completed for agent e5928260-e95d-42e1-a267-3d886c726c0d
+2025-05-05 20:24:58,761 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-05 20:24:58,765 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-05 20:24:58,765 - agent.cli - INFO - CLI resources closed.
+2025-05-05 20:36:35,253 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-05 20:36:35,253 - agent.cli - INFO - Initializing CLI services...
+2025-05-05 20:36:35,253 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-05 20:36:35,270 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-05 20:36:35,271 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-05 20:36:35,271 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-05 20:36:35,271 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-05 20:36:35,293 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-05 20:36:35,293 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-05 20:36:35,293 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-05 20:36:35,296 - agent.factory - INFO - Creating agent of type 'product_manager' with name 'Test PM'
+2025-05-05 20:36:35,296 - agent.product_manager.91295cef - INFO - ProductManagerAgent 91295cef-7bc3-43d8-9c80-5fa3503872b4 (Test PM) initialized.
+2025-05-05 20:36:35,296 - agent.factory - INFO - Successfully created agent 91295cef-7bc3-43d8-9c80-5fa3503872b4 (Test PM)
+2025-05-05 20:36:35,296 - agent.cli - INFO - Invoking analyze_requirements for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4...
+2025-05-05 20:36:35,299 - agent.product_manager.91295cef - INFO - Activity logged: 8d153339-196f-45a7-a019-c21fa6e6e2cd (RequirementAnalysis) for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4
+2025-05-05 20:36:41,895 - agent.product_manager.91295cef - INFO - Activity logged: dd964748-ef37-4c80-b307-0d6fab6a0038 (Thinking) for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4
+2025-05-05 20:36:41,895 - agent.logging.thought - INFO - Initializing ThoughtCapture system...
+2025-05-05 20:36:41,898 - agent.logging.thought - INFO - Thought capture system initialized successfully.
+2025-05-05 20:36:41,898 - agent.memory.enhanced_vector - INFO - Registered entity type: ThoughtProcess
+2025-05-05 20:36:41,898 - agent.logging.thought - INFO - Registered ThoughtProcess entity type with vector memory
+2025-05-05 20:36:42,358 - agent.logging.thought - INFO - Captured thought process: 2b5017e6-58af-4c60-aa92-2016419b62cd
+2025-05-05 20:36:42,371 - agent.product_manager.91295cef - INFO - Activity logged: 82009447-d3e9-411f-acf1-ce116ecdb06c (RequirementAnalysisComplete) for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4
+2025-05-05 20:36:42,371 - agent.cli - INFO - analyze_requirements completed for agent 91295cef-7bc3-43d8-9c80-5fa3503872b4
+2025-05-05 20:36:42,371 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-05 20:36:42,390 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-05 20:36:42,391 - agent.cli - INFO - CLI resources closed.

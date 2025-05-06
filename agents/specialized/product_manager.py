@@ -42,51 +42,70 @@ class ProductManagerAgent(BaseAgent):
 
     async def analyze_requirements(self, project_description: str) -> Dict[str, Any]:
         """
-        Analyze a high-level project description and break it down into structured
-        requirements and features.
+        Analyze high-level project description and break it down into structured
+        requirements, features, user stories, and NFRs.
+        Returns a dictionary containing the structured analysis.
         """
-        system_message = """You are a Product Manager for a software development team.
-        Analyze the project description and break it down into:
-        1. A clear project vision statement
-        2. Key features (3-7 major capabilities)
-        3. User stories for each feature (following the "As a [role] I want [goal] so that [benefit]" format)
-        4. Acceptance criteria for each user story
-        5. Non-functional requirements (performance, security, etc.)
-
-        Structure your response as a JSON object that can be parsed programmatically."""
-
-        prompt = f"""Project Description:
-        {project_description}
-
-        Please analyze this description and provide a structured breakdown as specified."""
-
-        # Log that we're starting the analysis
         await self.log_activity(
             activity_type="RequirementAnalysis",
             description="Analyzing project requirements",
             input_data={"project_description": project_description},
         )
 
-        # Use the LLM to analyze requirements
+        # Updated System Message with precise JSON structure definition
+        system_message = """You are a Product Manager analyzing a project description. Your task is to break it down into a structured JSON format. 
+The output MUST be a single JSON object containing the following keys exactly:
+- "title": (string) A concise, suitable title for the project.
+- "vision": (string) A clear vision statement for the project.
+- "target_audience": (string) Description of the primary users.
+- "key_goals": (list of strings) The main objectives the project aims to achieve.
+- "success_metrics": (dictionary) Key metrics to measure project success (e.g., {"user_adoption_rate": "target > 80%"}).
+- "constraints": (list of strings) Known limitations or constraints.
+- "features": (list of objects) A list of major features.
+    - Each feature object MUST have: "title" (string), "description" (string), "priority" (string - e.g., High/Medium/Low), "complexity" (string - e.g., High/Medium/Low), "dependencies" (list of strings - feature titles it depends on), and "user_stories" (list of objects).
+        - Each user_story object MUST have: "title" (string - concise story summary), "description" (string - full story text "As a [user], I want [goal], so that [benefit]"), "as_a" (string), "i_want" (string), "so_that" (string), "acceptance_criteria" (list of strings), "priority" (string), "estimate" (string - e.g., Small/Medium/Large).
+- "non_functional_requirements": (list of objects) A list of NFRs.
+    - Each NFR object MUST have: "title" (string - concise NFR title), "description" (string - detailed requirement), "category" (string - e.g., Performance, Security, Usability), "priority" (string), "metrics" (list of strings - how to measure it).
+
+Ensure the output is ONLY the JSON object, starting with { and ending with }."""
+
+        # Updated Prompt reinforcing the JSON structure
+        prompt = f"""
+Analyze the following project description:
+'''
+{project_description}
+'''
+
+Produce a structured analysis as a single JSON object adhering strictly to the format defined in the system message. Use the exact keys specified (e.g., "vision", "features", "user_stories", "non_functional_requirements").
+"""
+
+        # Use the LLM to generate the structured requirements
         thought, error = await self.think(prompt, system_message)
 
         if error:
             self.logger.error(f"Error during requirement analysis: {error}")
             return {"error": error}
 
-        # Extract JSON from the response
+        # Extract JSON from the response (assuming it starts with { and ends with })
         try:
-            # Find JSON content in the response
             start_idx = thought.find("{")
             end_idx = thought.rfind("}") + 1
-
             if start_idx == -1 or end_idx == 0:
-                raise ValueError("No JSON object found in the response")
+                # Fallback: Check if wrapped in markdown code block
+                if thought.strip().startswith("```json"):
+                    start_idx = thought.find("{")
+                    end_idx = thought.rfind("}") + 1
+                elif thought.strip().startswith("```"):
+                    start_idx = thought.find("{")  # Try again after stripping ```
+                    end_idx = thought.rfind("}") + 1
+
+                if start_idx == -1 or end_idx == 0:
+                    raise ValueError("No valid JSON object found in the LLM response.")
 
             json_str = thought[start_idx:end_idx]
             requirements = json.loads(json_str)
 
-            # Store the requirements in the database
+            # Attempt to store the requirements in the database
             await self._store_requirements(requirements)
 
             # Log the successful analysis

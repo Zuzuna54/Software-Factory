@@ -561,6 +561,104 @@ class AgentCLI:
         self._initialized = False
         logger.info("CLI resources closed.")
 
+    # Method to fetch agent data and recreate instance (Helper)
+    async def _get_agent_instance(self, agent_id: str) -> Optional[BaseAgent]:
+        """Fetch agent data from DB and recreate the instance using the factory."""
+        await self._ensure_initialized()
+        if not self.db_client or not self.agent_factory:
+            logger.error("DB Client or Agent Factory not initialized.")
+            return None
+
+        query = "SELECT agent_id, agent_type, agent_name, capabilities FROM agents WHERE agent_id = $1"
+        agent_data = await self.db_client.fetch_one(query, agent_id)
+
+        if not agent_data:
+            logger.error(f"Agent with ID {agent_id} not found in database.")
+            return None
+
+        try:
+            agent_instance = self.agent_factory.create_agent(
+                agent_type=agent_data["agent_type"],
+                agent_name=agent_data["agent_name"],
+                capabilities=json.loads(agent_data["capabilities"] or "{}"),
+                agent_id=str(agent_data["agent_id"]),  # Pass the existing ID
+            )
+            return agent_instance
+        except Exception as e:
+            logger.error(
+                f"Failed to recreate agent instance {agent_id}: {e}", exc_info=True
+            )
+            return None
+
+    # --- Invocation Methods ---
+
+    async def invoke_analyze_requirements(
+        self, agent_id: str, description: str
+    ) -> Optional[Dict[str, Any]]:
+        """Invoke the analyze_requirements method on a ProductManagerAgent."""
+        agent_instance = await self._get_agent_instance(agent_id)
+        if not agent_instance:
+            print(f"Error: Could not find or recreate agent {agent_id}")
+            return None
+
+        # Check if the agent has the required method
+        if not hasattr(agent_instance, "analyze_requirements") or not callable(
+            getattr(agent_instance, "analyze_requirements")
+        ):
+            logger.error(
+                f"Agent {agent_id} (type {agent_instance.agent_type}) does not have analyze_requirements method."
+            )
+            print(
+                f"Error: Agent type {agent_instance.agent_type} cannot analyze requirements."
+            )
+            return None
+
+        try:
+            logger.info(f"Invoking analyze_requirements for agent {agent_id}...")
+            result = await agent_instance.analyze_requirements(description)
+            logger.info(f"analyze_requirements completed for agent {agent_id}")
+            return result
+        except Exception as e:
+            logger.error(
+                f"Error invoking analyze_requirements for agent {agent_id}: {e}",
+                exc_info=True,
+            )
+            print("Error during invocation. Check logs.")
+            return None
+
+    async def invoke_run_tests(
+        self, agent_id: str, test_paths: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Invoke the run_tests method on a QAAgent."""
+        agent_instance = await self._get_agent_instance(agent_id)
+        if not agent_instance:
+            print(f"Error: Could not find or recreate agent {agent_id}")
+            return None
+
+        # Check if the agent has the required method
+        if not hasattr(agent_instance, "run_tests") or not callable(
+            getattr(agent_instance, "run_tests")
+        ):
+            logger.error(
+                f"Agent {agent_id} (type {agent_instance.agent_type}) does not have run_tests method."
+            )
+            print(f"Error: Agent type {agent_instance.agent_type} cannot run tests.")
+            return None
+
+        try:
+            logger.info(
+                f"Invoking run_tests for agent {agent_id} with paths: {test_paths}..."
+            )
+            result = await agent_instance.run_tests(test_paths)
+            logger.info(f"run_tests completed for agent {agent_id}")
+            return result
+        except Exception as e:
+            logger.error(
+                f"Error invoking run_tests for agent {agent_id}: {e}", exc_info=True
+            )
+            print("Error during invocation. Check logs.")
+            return None
+
 
 async def run_cli():
     """Parses arguments and runs the appropriate CLI command."""
@@ -609,6 +707,31 @@ async def run_cli():
     )
     parser_agent_activities.add_argument(
         "--limit", type=int, default=10, help="Maximum activities to show (default: 10)"
+    )
+
+    # Add agent invoke subcommands
+    parser_agent_analyze = agent_subparsers.add_parser(
+        "analyze-requirements",
+        help="Invoke analyze_requirements on a Product Manager agent.",
+    )
+    parser_agent_analyze.add_argument(
+        "--id", type=str, required=True, help="ID of the Product Manager agent."
+    )
+    parser_agent_analyze.add_argument(
+        "--description", type=str, required=True, help="High-level project description."
+    )
+
+    parser_agent_run_tests = agent_subparsers.add_parser(
+        "run-tests", help="Invoke run_tests on a QA agent."
+    )
+    parser_agent_run_tests.add_argument(
+        "--id", type=str, required=True, help="ID of the QA agent."
+    )
+    parser_agent_run_tests.add_argument(
+        "--paths",
+        type=str,
+        nargs="*",
+        help="Optional list of specific test paths/files to run.",
     )
 
     # --- Message Commands ---
@@ -685,6 +808,7 @@ async def run_cli():
     cli = AgentCLI()
 
     try:
+        result = None  # Initialize result
         if args.command == "agent":
             if args.agent_command == "create":
                 result = await cli.create_agent(
@@ -694,11 +818,20 @@ async def run_cli():
                 )
             elif args.agent_command == "list":
                 result = await cli.list_agents()
-                print(json.dumps(result, indent=2))
             elif args.agent_command == "activities":
                 result = await cli.get_agent_activities(
                     agent_id=args.id, activity_type=args.type, limit=args.limit
                 )
+            elif args.agent_command == "analyze-requirements":
+                result = await cli.invoke_analyze_requirements(
+                    agent_id=args.id, description=args.description
+                )
+            elif args.agent_command == "run-tests":
+                result = await cli.invoke_run_tests(
+                    agent_id=args.id, test_paths=args.paths
+                )
+            # Print result if the command produced one and wasn't list/activities which print themselves
+            if result is not None and args.agent_command not in ["list", "activities"]:
                 print(json.dumps(result, indent=2))
 
         elif args.command == "message":

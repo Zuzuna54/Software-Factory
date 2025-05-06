@@ -40,7 +40,8 @@ CREATE TABLE agent_activities (
     output_data JSONB, -- What the agent produced
     related_files TEXT[], -- File paths affected
     decisions_made JSONB, -- Structured record of decisions
-    execution_time_ms INTEGER -- Performance tracking
+    execution_time_ms INTEGER, -- Performance tracking
+    related_task_id UUID REFERENCES tasks(task_id) ON DELETE SET NULL -- Added column
 );
 
 -- Project Artifacts
