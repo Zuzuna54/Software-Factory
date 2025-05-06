@@ -71,12 +71,12 @@ class BaseAgent:
                 vector_memory=self.vector_memory,
                 llm_provider=self.llm_provider,
             )
-            # Ensure ThoughtCapture is initialized (creates tables/indexes if needed)
-            asyncio.create_task(self.thought_capture.initialize())
+            # DO NOT initialize here asynchronously. Initialization will be handled explicitly by the creator.
+            # asyncio.create_task(self.thought_capture.initialize())
         else:
             self.thought_capture = None
             self.logger.warning(
-                "ThoughtCapture could not be initialized due to missing DB client."
+                f"ThoughtCapture could not be initialized due to missing DB client."
             )
 
         self.capabilities = capabilities or {}
@@ -87,7 +87,10 @@ class BaseAgent:
 
         # Defer agent registration until DB client is confirmed available
         if self.db_client:
-            asyncio.create_task(self._register_agent())
+            # Agent registration is now handled explicitly by the creator (e.g., AgentCLI/AgentFactory)
+            # to avoid race conditions and control registration timing.
+            # asyncio.create_task(self._register_agent()) # Commented out
+            pass  # Keep if block structure if needed, otherwise remove if/else
         else:
             self.logger.warning(
                 f"Agent {self.agent_id} ({self.agent_name}) cannot register: DB client not provided."

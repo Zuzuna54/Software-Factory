@@ -17,20 +17,25 @@ class QAAgent(BaseAgent):
     QA Agent - Responsible for testing and validating code changes.
     """
 
+    DEFAULT_CAPABILITIES = {
+        "can_write_tests": True,
+        "can_execute_tests": True,
+        "can_report_bugs": True,
+        "can_verify_fixes": True,
+    }
+
     def __init__(self, **kwargs):
-        super().__init__(
-            agent_type="qa",
-            agent_name="QA Agent",
-            capabilities={
-                "code_testing": True,
-                "test_automation": True,
-                "bug_reporting": True,
-                "code_quality": True,
-                "regression_testing": True,
-            },
-            **kwargs,
-        )
-        self.logger = logging.getLogger(f"agent.qa.{self.agent_id}")
+        """Initialize the QA Agent."""
+        capabilities = self.DEFAULT_CAPABILITIES.copy()
+        if "capabilities" in kwargs:
+            capabilities.update(kwargs["capabilities"])
+        kwargs["capabilities"] = capabilities
+
+        # Let BaseAgent handle initialization via kwargs, including agent_type
+        super().__init__(**kwargs)
+
+        self.logger.info(f"QAAgent {self.agent_id} ({self.agent_name}) initialized.")
+        # TODO: Specific initialization for QA Agent
 
     async def run_tests(
         self,

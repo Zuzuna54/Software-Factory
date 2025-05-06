@@ -8,17 +8,11 @@ import asyncio  # Added for async sleep
 
 # Third-party imports
 try:
-    # Keep Vertex AI imports for embeddings/function calling for now
-    from google.cloud import aiplatform
-    from vertexai.language_models import TextEmbeddingModel
-    from google.auth import default
-    from google.auth.exceptions import DefaultCredentialsError
-
-    # Import for direct Gemini API access
+    # Only import genai now
     import google.generativeai as genai
 except ImportError as e:
     raise ImportError(
-        f"Required Google libraries not installed. Please install google-cloud-aiplatform and google-generativeai: {e}"
+        f"Required Google library not installed. Please install google-generativeai: {e}"
     )
 
 from .base import LLMProvider
@@ -35,16 +29,15 @@ class GeminiApiProvider(LLMProvider):
 
     def __init__(
         self,
-        model_name: str = "gemini-1.5-flash-001",  # Use appropriate model for genai
-        embedding_model_name: str = "text-embedding-004",  # Kept for Vertex path
+        model_name: str = "gemini-1.5-flash-001",
         api_key_env_var: str = "GEMINI_API_KEY",
+        # Removed embedding_model_name as Vertex path is removed
     ):
         """
         Initializes the Google Gemini API provider.
 
         Args:
             model_name: The name of the Gemini model to use (e.g., "gemini-1.5-flash-001").
-            embedding_model_name: The name of the Vertex embedding model (kept for compatibility, but likely fails).
             api_key_env_var: The environment variable containing the Gemini API key.
         """
         api_key = os.environ.get(api_key_env_var)
@@ -63,7 +56,6 @@ class GeminiApiProvider(LLMProvider):
             raise
 
         self.model_name = model_name
-        self.embedding_model_name = embedding_model_name  # Store for Vertex path
 
         # Load the generative model via genai
         try:
@@ -76,55 +68,7 @@ class GeminiApiProvider(LLMProvider):
             )
             raise
 
-        # --- Attempt to load Vertex embedding model (kept for now, will likely fail) ---
-        self.embedding_model = None
-        try:
-            # This part still requires Vertex AI setup (project, location, permissions, billing)
-            # It's kept here temporarily to avoid breaking dependent code immediately,
-            # but needs to be addressed (either fix Vertex setup or migrate embeddings).
-            project_id = self._get_project_id()
-            location = "us-central1"  # Default or configurable
-            if project_id:
-                aiplatform.init(project=project_id, location=location)
-                logger.info(
-                    f"Vertex AI initialized for embedding model: project '{project_id}', location '{location}'"
-                )
-                self.embedding_model = TextEmbeddingModel.from_pretrained(
-                    self.embedding_model_name
-                )
-                logger.info(
-                    f"Loaded Vertex embedding model: {self.embedding_model_name}"
-                )
-            else:
-                logger.warning(
-                    "Could not determine project ID for Vertex AI embedding model. Embeddings will likely fail."
-                )
-
-        except Exception as e:
-            logger.error(
-                f"Failed to load Vertex embedding model {self.embedding_model_name} (this might be expected if Vertex setup is incomplete): {e}",
-                # exc_info=True # Reduce noise for expected failure
-            )
-            self.embedding_model = None  # Ensure it's None if loading fails
-        # --- End of Vertex embedding model loading attempt ---
-
-    def _get_project_id(self) -> Optional[str]:
-        """Helper to get project ID from environment or ADC (for Vertex embedding path)."""
-        project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-        if project_id:
-            return project_id
-        try:
-            _, project_id = default()
-            if project_id:
-                logger.info(
-                    f"Inferred Google Cloud project ID for Vertex: {project_id}"
-                )
-                return project_id
-        except DefaultCredentialsError:
-            logger.warning(
-                "Could not determine Google Cloud project ID from Application Default Credentials for Vertex embeddings."
-            )
-        return None
+        # Removed the Vertex AI embedding model loading section entirely
 
     async def _generate_with_retry(self, *args, **kwargs):
         """Wrapper for generate_content_async with retry logic."""

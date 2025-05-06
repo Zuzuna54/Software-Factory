@@ -18,20 +18,27 @@ class BackendDeveloperAgent(BaseAgent):
     functionality based on requirements and tasks.
     """
 
+    DEFAULT_CAPABILITIES = {
+        "can_write_code": True,
+        "can_refactor_code": True,
+        "can_fix_bugs": True,
+        "can_write_api_endpoints": True,
+        "can_work_with_db": True,
+    }
+
     def __init__(self, git_client: Optional[GitClient] = None, **kwargs):
-        super().__init__(
-            agent_type="backend_developer",
-            agent_name="Backend Developer",
-            capabilities={
-                "python_coding": True,
-                "api_development": True,
-                "database_integration": True,
-                "code_review": True,
-                "testing": True,
-            },
-            **kwargs,
+        """Initialize the Backend Developer Agent."""
+        capabilities = self.DEFAULT_CAPABILITIES.copy()
+        if "capabilities" in kwargs:
+            capabilities.update(kwargs["capabilities"])
+        kwargs["capabilities"] = capabilities
+
+        # Let BaseAgent handle initialization via kwargs, including agent_type
+        super().__init__(**kwargs)
+
+        self.logger.info(
+            f"BackendDeveloperAgent {self.agent_id} ({self.agent_name}) initialized."
         )
-        self.logger = logging.getLogger(f"agent.backend.{self.agent_id}")
         self.git_client = git_client
 
     async def implement_api_endpoint(

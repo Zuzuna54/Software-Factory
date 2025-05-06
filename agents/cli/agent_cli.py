@@ -174,6 +174,25 @@ class AgentCLI:
             logger.info(
                 f"Agent {agent_instance.agent_id} ({agent_instance.agent_name}) created and registered/updated in DB."
             )
+
+            # Explicitly initialize ThoughtCapture synchronously after agent creation
+            if agent_instance.thought_capture:
+                try:
+                    logger.debug(
+                        f"Initializing ThoughtCapture for agent {agent_instance.agent_id}"
+                    )
+                    await agent_instance.thought_capture.initialize()
+                    logger.debug(
+                        f"ThoughtCapture initialized for agent {agent_instance.agent_id}"
+                    )
+                except Exception as tc_e:
+                    logger.error(
+                        f"Failed to initialize ThoughtCapture for agent {agent_instance.agent_id}: {tc_e}",
+                        exc_info=True,
+                    )
+                    # Decide if this should be a fatal error for agent creation?
+                    # For now, just log it.
+
             print(f"Agent Created: ID = {agent_instance.agent_id}")
             return agent_instance.agent_id
 
