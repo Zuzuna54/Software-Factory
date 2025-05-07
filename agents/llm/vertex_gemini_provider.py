@@ -88,12 +88,12 @@ class GeminiApiProvider(LLMProvider):
                     )
             except Exception as e:
                 retries += 1
-                logger.warning(
-                    f"Gemini API call failed (attempt {retries}/{MAX_RETRIES}): {e}"
-                )
-                if retries >= MAX_RETRIES:
-                    logger.error("Max retries reached for Gemini API call.")
-                    raise e  # Re-raise the last exception
+            logger.warning(
+                f"Gemini API call failed (attempt {retries}/{MAX_RETRIES}): {e}"
+            )
+            if retries >= MAX_RETRIES:
+                logger.error("Max retries reached for Gemini API call.")
+                raise e  # Re-raise the last exception
                 # Exponential backoff with jitter
                 sleep_time = backoff_time + (os.urandom(1)[0] / 255.0)  # Add jitter
                 logger.info(f"Retrying in {sleep_time:.2f} seconds...")
@@ -160,22 +160,22 @@ class GeminiApiProvider(LLMProvider):
             # For simplicity here, we prepend to the first user message content.
             found_first_user = False
             temp_messages = []
-            for msg in messages:
-                role = msg.get("role", "user").lower()
-                content = msg.get("content", "")
-                if role == "system":  # Combine system messages
-                    system_message += "\n" + content
-                    continue
-                # Map roles (e.g., 'assistant' -> 'model')
-                if role == "assistant":
-                    role = "model"
-                if role not in ["user", "model"]:
-                    logger.warning(f"Unsupported role '{role}', mapping to 'user'.")
-                    role = "user"
-                if role == "user" and not found_first_user:
-                    content = f"{system_message}\n\n{content}"
-                    found_first_user = True
-                temp_messages.append({"role": role, "parts": [content]})
+        for msg in messages:
+            role = msg.get("role", "user").lower()
+            content = msg.get("content", "")
+            if role == "system":  # Combine system messages
+                system_message += "\n" + content
+                continue
+            # Map roles (e.g., 'assistant' -> 'model')
+            if role == "assistant":
+                role = "model"
+            if role not in ["user", "model"]:
+                logger.warning(f"Unsupported role '{role}', mapping to 'user'.")
+                role = "user"
+            if role == "user" and not found_first_user:
+                content = f"{system_message}\n\n{content}"
+                found_first_user = True
+            temp_messages.append({"role": role, "parts": [content]})
 
             if not found_first_user and system_message:
                 # If no user message was found, add system message as initial user message
@@ -192,8 +192,8 @@ class GeminiApiProvider(LLMProvider):
                     role = "model"
                 if role == "system":
                     continue  # Skip system if system_message is None
-                if role not in ["user", "model"]:
-                    role = "user"
+            if role not in ["user", "model"]:
+                role = "user"
                 formatted_messages.append({"role": role, "parts": [content]})
 
         # Ensure conversation starts with a 'user' role if needed
@@ -310,7 +310,6 @@ class GeminiApiProvider(LLMProvider):
                         f"Gemini API embedding generation returned no embedding for model {embedding_model_name}."
                     )
                     return []  # Return empty list if embedding is missing
-
             except Exception as e:
                 retries += 1
                 logger.warning(

@@ -25,6 +25,15 @@ try:
         MessageType,
     )
     from ..factory import AgentFactory, AGENT_TYPE_MAP  # Import AGENT_TYPE_MAP
+
+    # Import Celery task functions
+    from ..tasks.agent_tasks import (
+        analyze_requirements_task,
+        plan_sprint_task,
+        assign_task_to_agent_task,
+        update_task_status_task,
+        # Import other tasks as needed
+    )
 except ImportError:
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
     from agents.base_agent import BaseAgent
@@ -38,6 +47,14 @@ except ImportError:
     )
     from agents.factory import AgentFactory, AGENT_TYPE_MAP  # Import AGENT_TYPE_MAP
 
+    # Import Celery task functions (also in except block for consistency)
+    from agents.tasks.agent_tasks import (
+        analyze_requirements_task,
+        plan_sprint_task,
+        assign_task_to_agent_task,
+        update_task_status_task,
+    )
+
 # Set up logging for the CLI
 log_file = "agent_cli.log"
 logging.basicConfig(
@@ -50,6 +67,15 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("agent.cli")
+
+
+# Map task names to functions for CLI dispatch
+TASK_MAP = {
+    "analyze_requirements": analyze_requirements_task,
+    "plan_sprint": plan_sprint_task,
+    "assign_task": assign_task_to_agent_task,
+    "update_task_status": update_task_status_task,
+}
 
 
 class AgentCLI:
@@ -659,6 +685,42 @@ class AgentCLI:
             print("Error during invocation. Check logs.")
             return None
 
+    # --- New Method for Task Dispatch ---
+    async def dispatch_celery_task(
+        self,
+        task_name: str,
+        task_args: List[Any],
+        task_kwargs: Dict[str, Any],
+    ):
+        """Dispatch a Celery task by name with provided arguments."""
+        await self._ensure_initialized()
+
+        logger.info(f"Attempting to dispatch Celery task: {task_name}")
+
+        task_func = TASK_MAP.get(task_name)
+        if not task_func:
+            logger.error(f"Unknown task name specified for dispatch: {task_name}")
+            print(
+                f"Error: Unknown task name '{task_name}'. Known tasks: {list(TASK_MAP.keys())}"
+            )
+            return
+
+        # Arguments are now pre-parsed, no need for JSON loading here
+
+        try:
+            # Use apply_async for more control
+            task_result = task_func.apply_async(args=task_args, kwargs=task_kwargs)
+            logger.info(f"Dispatched task '{task_name}' with ID: {task_result.id}")
+            print(
+                f"Dispatched task '{task_name}' with Celery task ID: {task_result.id}"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to dispatch Celery task '{task_name}': {e}", exc_info=True
+            )
+            print(f"Error: Failed to dispatch task '{task_name}'. Check logs.")
+
 
 async def run_cli():
     """Parses arguments and runs the appropriate CLI command."""
@@ -804,6 +866,81 @@ async def run_cli():
         "--limit", type=int, default=5, help="Maximum results (default: 5)"
     )
 
+    # --- Task Commands ---
+    parser_task = subparsers.add_parser("task", help="Manage Celery tasks")
+    task_subparsers = parser_task.add_subparsers(
+        dest="task_command", help="Task actions", required=True
+    )
+
+    # task dispatch
+    parser_dispatch = task_subparsers.add_parser(
+        "dispatch", help="Dispatch a specific background task (see subcommands)"
+    )
+    dispatch_subparsers = parser_dispatch.add_subparsers(
+        dest="task_name", help="Specific task to dispatch", required=True
+    )
+
+    # task dispatch analyze_requirements
+    parser_dispatch_analyze = dispatch_subparsers.add_parser(
+        "analyze_requirements", help="Dispatch task to analyze project requirements."
+    )
+    parser_dispatch_analyze.add_argument(
+        "--project_description",
+        type=str,
+        required=True,
+        help="High-level project description.",
+    )
+
+    # task dispatch plan_sprint
+    parser_dispatch_plan_sprint = dispatch_subparsers.add_parser(
+        "plan_sprint", help="Dispatch task to plan a sprint for a project."
+    )
+    parser_dispatch_plan_sprint.add_argument(
+        "--project_id",
+        type=str,
+        required=True,
+        help="ID of the project (e.g., 'default-project')",
+    )
+    parser_dispatch_plan_sprint.add_argument(
+        "--sprint_duration_days",
+        type=int,
+        default=14,
+        help="Duration of the sprint in days (default: 14)",
+    )
+
+    # task dispatch assign_task
+    parser_dispatch_assign = dispatch_subparsers.add_parser(
+        "assign_task", help="Dispatch task to assign a task to an agent."
+    )
+    parser_dispatch_assign.add_argument(
+        "--task_id", type=str, required=True, help="UUID of the task to assign."
+    )
+    parser_dispatch_assign.add_argument(
+        "--agent_id",
+        type=str,
+        required=True,
+        help="UUID of the agent to assign the task to.",
+    )
+
+    # task dispatch update_task_status
+    parser_dispatch_update_status = dispatch_subparsers.add_parser(
+        "update_task_status", help="Dispatch task to update a task's status."
+    )
+    parser_dispatch_update_status.add_argument(
+        "--task_id", type=str, required=True, help="UUID of the task to update."
+    )
+    parser_dispatch_update_status.add_argument(
+        "--status",
+        type=str,
+        required=True,
+        help="New status (e.g., BACKLOG, IN_PROGRESS, DONE).",
+    )
+    parser_dispatch_update_status.add_argument(
+        "--agent_id",
+        type=str,
+        help="(Optional) UUID of the agent performing the update.",
+    )
+
     args = parser.parse_args()
     cli = AgentCLI()
 
@@ -818,25 +955,28 @@ async def run_cli():
                 )
             elif args.agent_command == "list":
                 result = await cli.list_agents()
+                print(json.dumps(result, indent=2))
             elif args.agent_command == "activities":
                 result = await cli.get_agent_activities(
                     agent_id=args.id, activity_type=args.type, limit=args.limit
                 )
+                print(json.dumps(result, indent=2))
             elif args.agent_command == "analyze-requirements":
                 result = await cli.invoke_analyze_requirements(
                     agent_id=args.id, description=args.description
                 )
+                if result is not None:
+                    print(json.dumps(result, indent=2))
             elif args.agent_command == "run-tests":
                 result = await cli.invoke_run_tests(
                     agent_id=args.id, test_paths=args.paths
                 )
-            # Print result if the command produced one and wasn't list/activities which print themselves
-            if result is not None and args.agent_command not in ["list", "activities"]:
-                print(json.dumps(result, indent=2))
+                if result is not None:
+                    print(json.dumps(result, indent=2))
 
         elif args.command == "message":
             if args.message_command == "send":
-                result = await cli.send_message(
+                await cli.send_message(
                     sender_id=args.sender,
                     receiver_id=args.receiver,
                     content=args.content,
@@ -855,6 +995,30 @@ async def run_cli():
             if args.knowledge_command == "search":
                 result = await cli.search_knowledge(query=args.query, limit=args.limit)
                 print(json.dumps(result, indent=2))
+
+        elif args.command == "task":
+            if args.task_command == "dispatch":
+                # Construct kwargs from specific args for the dispatched task
+                task_kwargs = {}
+                if args.task_name == "analyze_requirements":
+                    task_kwargs = {"project_description": args.project_description}
+                elif args.task_name == "plan_sprint":
+                    task_kwargs = {
+                        "project_id": args.project_id,
+                        "sprint_duration_days": args.sprint_duration_days,
+                    }
+                elif args.task_name == "assign_task":
+                    task_kwargs = {"task_id": args.task_id, "agent_id": args.agent_id}
+                elif args.task_name == "update_task_status":
+                    task_kwargs = {"task_id": args.task_id, "status": args.status}
+                    if args.agent_id:
+                        task_kwargs["agent_id"] = args.agent_id
+
+                await cli.dispatch_celery_task(
+                    task_name=args.task_name,
+                    task_args=[],  # No positional args for these tasks yet
+                    task_kwargs=task_kwargs,
+                )
 
     except Exception as e:
         logger.error(f"CLI command failed: {e}", exc_info=True)

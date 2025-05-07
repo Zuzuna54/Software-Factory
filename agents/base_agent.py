@@ -71,12 +71,12 @@ class BaseAgent:
                 vector_memory=self.vector_memory,
                 llm_provider=self.llm_provider,
             )
-            # DO NOT initialize here asynchronously. Initialization will be handled explicitly by the creator.
-            # asyncio.create_task(self.thought_capture.initialize())
+            # Ensure ThoughtCapture is initialized (creates tables/indexes if needed)
+            # asyncio.create_task(self.thought_capture.initialize()) # Removed
         else:
             self.thought_capture = None
             self.logger.warning(
-                f"ThoughtCapture could not be initialized due to missing DB client."
+                "ThoughtCapture could not be initialized due to missing DB client."
             )
 
         self.capabilities = capabilities or {}
@@ -86,14 +86,40 @@ class BaseAgent:
         )
 
         # Defer agent registration until DB client is confirmed available
-        if self.db_client:
-            # Agent registration is now handled explicitly by the creator (e.g., AgentCLI/AgentFactory)
-            # to avoid race conditions and control registration timing.
-            # asyncio.create_task(self._register_agent()) # Commented out
-            pass  # Keep if block structure if needed, otherwise remove if/else
+        if not self.db_client:  # Check kept for initial warning
+            self.logger.warning(
+                f"Agent {self.agent_id} ({self.agent_name}) cannot register yet: DB client not provided at __init__."
+            )
+        # asyncio.create_task(self._register_agent()) # Removed
+
+    async def complete_initialization(self):
+        """Completes asynchronous initialization steps."""
+        if self.thought_capture:
+            try:
+                await self.thought_capture.initialize()
+                self.logger.info(
+                    f"ThoughtCapture initialized for agent {self.agent_id}"
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"Error initializing ThoughtCapture for agent {self.agent_id}: {e}",
+                    exc_info=True,
+                )
         else:
             self.logger.warning(
-                f"Agent {self.agent_id} ({self.agent_name}) cannot register: DB client not provided."
+                f"ThoughtCapture not available for agent {self.agent_id}, skipping initialization."
+            )
+
+        if self.db_client:
+            try:
+                await self._register_agent()
+            except Exception as e:
+                self.logger.error(
+                    f"Error registering agent {self.agent_id}: {e}", exc_info=True
+                )
+        else:
+            self.logger.warning(
+                f"Agent {self.agent_id} ({self.agent_name}) cannot register: DB client not provided during complete_initialization."
             )
 
     async def _register_agent(self) -> None:
@@ -559,6 +585,7 @@ class BaseAgent:
         self, prompt: str, system_message: Optional[str] = None
     ) -> Tuple[str, str]:
         """Perform internal reasoning using the LLM provider and log the thought process."""
+        self.logger.info(f"Entering think method for agent {self.agent_id}")
         metrics_collector.increment_counter(
             "agent_think_requests_total", tags={"agent_type": self.agent_type}
         )
@@ -569,10 +596,16 @@ class BaseAgent:
             error_msg = f"No LLM provider available for agent {self.agent_id}"
             self.logger.error(error_msg)
             # Log the error activity
+            self.logger.info(
+                f"Logging ThinkingError (no LLM provider) for agent {self.agent_id}"
+            )
             await self.log_activity(
                 activity_type="ThinkingError",
                 description=error_msg,
                 input_data={"prompt": prompt[:1000]},  # Log truncated prompt
+            )
+            self.logger.info(
+                f"Exiting think method for agent {self.agent_id} (no LLM provider)"
             )
             return (
                 "",
@@ -583,21 +616,45 @@ class BaseAgent:
         thought = ""
         error_msg = ""
 
+        LLM_TIMEOUT_SECONDS = 60.0  # Added timeout constant
+
         try:
-            # For now, using generate_completion. Could adapt to use generate_chat_completion if needed.
-            thought = await self.llm_provider.generate_completion(
-                prompt=prompt,
-                system_message=system_message,
-                # Consider adding other parameters like max_tokens, temperature if needed
+            self.logger.info(
+                f"Agent {self.agent_id} attempting to call LLM provider with {LLM_TIMEOUT_SECONDS}s timeout."
+            )
+            async with asyncio.timeout(LLM_TIMEOUT_SECONDS):
+                # For now, using generate_completion. Could adapt to use generate_chat_completion if needed.
+                thought = await self.llm_provider.generate_completion(
+                    prompt=prompt,
+                    system_message=system_message,
+                    # Consider adding other parameters like max_tokens, temperature if needed
+                )
+            self.logger.info(f"Agent {self.agent_id} LLM provider call successful.")
+
+        except asyncio.TimeoutError:
+            self.logger.error(
+                f"Agent {self.agent_id} LLM call timed out after {LLM_TIMEOUT_SECONDS} seconds.",
+                exc_info=True,
+            )
+            error_msg = f"LLM call timed out after {LLM_TIMEOUT_SECONDS} seconds."
+            metrics_collector.increment_counter(
+                "agent_think_errors_total",
+                tags={"agent_type": self.agent_type, "error_type": "timeout"},
             )
 
         except Exception as e:
+            self.logger.error(
+                f"Agent {self.agent_id} encountered exception during LLM call: {e}",
+                exc_info=True,
+            )
             error_msg = f"Error during LLM generation: {str(e)}"
             metrics_collector.increment_counter(
                 "agent_think_errors_total", tags={"agent_type": self.agent_type}
             )
-            self.logger.error(f"{error_msg} for agent {self.agent_id}", exc_info=True)
         finally:
+            self.logger.info(
+                f"Agent {self.agent_id} entered finally block in think method."
+            )
             execution_time = int(
                 (datetime.now() - start_time).total_seconds() * 1000
             )  # In milliseconds
@@ -615,6 +672,9 @@ class BaseAgent:
                 else {"thought_preview": thought[:100] + "..."}
             )
 
+            self.logger.info(
+                f"Agent {self.agent_id} attempting to log_activity ({activity_type}) in think's finally block."
+            )
             # Log simple activity record
             await self.log_activity(
                 activity_type=activity_type,
@@ -624,9 +684,15 @@ class BaseAgent:
                 output_data=output_data,
                 execution_time_ms=execution_time,
             )
+            self.logger.info(
+                f"Agent {self.agent_id} completed log_activity ({activity_type}) in think's finally block."
+            )
 
             # Capture detailed thought process if ThoughtCapture is available
             if self.thought_capture and not error_msg:
+                self.logger.info(
+                    f"Agent {self.agent_id} attempting to capture_thought_process."
+                )
                 try:
                     # Structure thought steps (simplified example)
                     thought_steps = [
@@ -653,16 +719,29 @@ class BaseAgent:
                         ],  # Example conclusion heuristic
                         tags=["reasoning", self.agent_type],
                     )
+                    self.logger.info(
+                        f"Agent {self.agent_id} completed capture_thought_process."
+                    )
                 except Exception as capture_e:
                     self.logger.error(
-                        f"Failed to capture detailed thought process: {capture_e}",
+                        f"Failed to capture detailed thought process for agent {self.agent_id}: {capture_e}",
                         exc_info=True,
                     )
+            elif self.thought_capture and error_msg:
+                self.logger.info(
+                    f"Agent {self.agent_id} skipping capture_thought_process due to error: {error_msg}"
+                )
+            elif not self.thought_capture:
+                self.logger.info(
+                    f"Agent {self.agent_id} skipping capture_thought_process as it's not available."
+                )
 
             metrics_collector.stop_timer(
                 "agent_think_duration_seconds", tags={"agent_type": self.agent_type}
             )
-
+        self.logger.info(
+            f"Exiting think method for agent {self.agent_id}. Error: '{error_msg}'"
+        )
         return (
             thought,
             error_msg,

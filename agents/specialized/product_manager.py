@@ -105,8 +105,24 @@ Produce a structured analysis as a single JSON object adhering strictly to the f
             json_str = thought[start_idx:end_idx]
             requirements = json.loads(json_str)
 
-            # Attempt to store the requirements in the database
-            await self._store_requirements(requirements)
+            # --- Create Project Record ---
+            project_title = requirements.get("title", "Untitled Project")
+            # Simple project ID generation (replace with more robust method if needed)
+            project_id = (
+                project_title.lower().replace(" ", "-").replace("[^a-z0-9-]", "")[:90]
+            )
+            if not project_id:
+                project_id = f"proj-{uuid4()}"
+
+            await self._create_project_if_not_exists(
+                project_id=project_id,
+                project_name=project_title,
+                description=project_description,
+            )
+            # -----------------------------
+
+            # Attempt to store the requirements in the database, passing project_id
+            await self._store_requirements(project_id, requirements)
 
             # Log the successful analysis
             await self.log_activity(
@@ -141,7 +157,35 @@ Produce a structured analysis as a single JSON object adhering strictly to the f
 
             return {"error": error_msg, "raw_response": thought}
 
-    async def _store_requirements(self, requirements: Dict[str, Any]) -> None:
+    async def _create_project_if_not_exists(
+        self, project_id: str, project_name: str, description: Optional[str] = None
+    ) -> None:
+        """Create a project record if it doesn't already exist."""
+        if not self.db_client:
+            self.logger.warning("DB client not available, cannot create project.")
+            return
+
+        project_query = """
+        INSERT INTO projects (project_id, project_name, description)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (project_id) DO NOTHING
+        """
+        try:
+            await self.db_client.execute(
+                project_query, project_id, project_name, description
+            )
+            self.logger.info(
+                f"Ensured project exists: ID={project_id}, Name={project_name}"
+            )
+        except Exception as e:
+            self.logger.error(
+                f"Failed to ensure project {project_id} exists: {e}", exc_info=True
+            )
+            # Decide if this should raise an error
+
+    async def _store_requirements(
+        self, project_id: str, requirements: Dict[str, Any]
+    ) -> None:
         """Store the analyzed requirements in the database."""
         if not self.db_client:
             self.logger.warning(
@@ -160,10 +204,6 @@ Produce a structured analysis as a single JSON object adhering strictly to the f
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         """
-
-        # Use a default project ID for now
-        # In a real system, we'd track different projects
-        project_id = "default-project"
 
         await self.db_client.execute(
             vision_query,
@@ -186,9 +226,9 @@ Produce a structured analysis as a single JSON object adhering strictly to the f
             feature_query = """
             INSERT INTO artifacts (
                 artifact_id, artifact_type, title, content,
-                created_by, status, metadata, version
+                project_id, created_by, status, metadata, version
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             """
 
             await self.db_client.execute(
@@ -197,6 +237,7 @@ Produce a structured analysis as a single JSON object adhering strictly to the f
                 "Feature",
                 feature.get("title", "Untitled Feature"),
                 feature.get("description", ""),
+                project_id,
                 self.agent_id,
                 "DRAFT",
                 json.dumps(
@@ -216,9 +257,9 @@ Produce a structured analysis as a single JSON object adhering strictly to the f
                 story_query = """
                 INSERT INTO artifacts (
                     artifact_id, artifact_type, title, content,
-                    created_by, status, metadata, parent_id, version
+                    project_id, created_by, status, metadata, parent_id, version
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 """
 
                 await self.db_client.execute(
@@ -227,6 +268,7 @@ Produce a structured analysis as a single JSON object adhering strictly to the f
                     "UserStory",
                     story.get("title", "Untitled Story"),
                     story.get("description", ""),
+                    project_id,
                     self.agent_id,
                     "DRAFT",
                     json.dumps(
@@ -250,9 +292,9 @@ Produce a structured analysis as a single JSON object adhering strictly to the f
             nfr_query = """
             INSERT INTO artifacts (
                 artifact_id, artifact_type, title, content,
-                created_by, status, metadata, version
+                project_id, created_by, status, metadata, version
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             """
 
             await self.db_client.execute(
@@ -261,6 +303,7 @@ Produce a structured analysis as a single JSON object adhering strictly to the f
                 "NonFunctionalRequirement",
                 nfr.get("title", "Untitled NFR"),
                 nfr.get("description", ""),
+                project_id,
                 self.agent_id,
                 "DRAFT",
                 json.dumps(

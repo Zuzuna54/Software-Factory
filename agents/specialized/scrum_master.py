@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import re
 from typing import Dict, List, Any, Optional, Tuple
 from uuid import uuid4
 from datetime import datetime, timedelta
@@ -42,32 +43,139 @@ class ScrumMasterAgent(BaseAgent):
         self.meetings = kwargs.get("meetings_module", None)
 
     async def plan_sprint(
-        self, backlog_items: List[Dict[str, Any]], sprint_duration_days: int = 14
+        self, project_id: str, sprint_duration_days: int = 14
     ) -> Dict[str, Any]:
         """
-        Plan a sprint based on prioritized backlog items.
+        Plan a sprint based on prioritized backlog items fetched by project_id.
         """
-        system_message = """You are a Scrum Master planning a sprint.
-        Review the backlog items and:
-        1. Select appropriate items for the sprint based on priority and dependencies
-        2. Break down features and user stories into specific tasks with estimates
-        3. Ensure the sprint has a balanced workload and achievable goals
-        4. Assign tasks to appropriate roles (Frontend, Backend, QA, etc.)
+        # Fetch backlog items (Features and User Stories) from DB based on project_id
+        if not self.db_client:
+            self.logger.error("Database client not available for fetching backlog.")
+            return {"error": "Database client not available."}
 
-        Respond with a JSON object containing the sprint plan."""
+        backlog_query = """
+        SELECT artifact_id, artifact_type, title, content, metadata, parent_id
+        FROM artifacts
+        WHERE project_id = $1 AND artifact_type IN ('Feature', 'UserStory')
+        ORDER BY created_at ASC
+        """
+        try:
+            db_results = await self.db_client.fetch_all(backlog_query, project_id)
+            backlog_items = []
+            stories_by_feature = {}
+            features_map = {}
 
-        prompt = f"""Backlog Items to Consider:
+            # First pass: collect features and group stories
+            for row in db_results:
+                artifact_id = str(row["artifact_id"])
+                metadata = json.loads(row["metadata"] or "{}")
+                item = {
+                    "id": artifact_id,
+                    "title": row["title"],
+                    "description": row["content"],
+                    "priority": metadata.get("priority", "Medium"),
+                    "estimate": metadata.get("estimate", "Medium"),
+                    "complexity": metadata.get("complexity", "Medium"),
+                    "dependencies": metadata.get("dependencies", []),
+                }
+                if row["artifact_type"] == "Feature":
+                    item["user_stories"] = []
+                    backlog_items.append(item)
+                    features_map[artifact_id] = item
+                elif row["artifact_type"] == "UserStory":
+                    parent_id = str(row["parent_id"]) if row["parent_id"] else None
+                    if parent_id:
+                        if parent_id not in stories_by_feature:
+                            stories_by_feature[parent_id] = []
+                        item["as_a"] = metadata.get("as_a", "")
+                        item["i_want"] = metadata.get("i_want", "")
+                        item["so_that"] = metadata.get("so_that", "")
+                        item["acceptance_criteria"] = metadata.get(
+                            "acceptance_criteria", []
+                        )
+                        stories_by_feature[parent_id].append(item)
+
+            # Second pass: attach stories to features
+            for feature_id, stories in stories_by_feature.items():
+                if feature_id in features_map:
+                    features_map[feature_id]["user_stories"] = stories
+
+        except Exception as e:
+            self.logger.error(
+                f"Failed to fetch backlog for project {project_id}: {e}", exc_info=True
+            )
+            return {"error": f"Failed to fetch backlog: {str(e)}"}
+
+        # Original system message and prompt logic follows, using the fetched backlog_items
+        system_message = """You are an expert Scrum Master meticulously planning a sprint.
+        Your primary goal is to break down selected backlog items (Features and User Stories) into granular, actionable tasks suitable for different roles (Backend, Frontend, QA).
+
+        Instructions:
+        1. Review the provided 'Backlog Items to Consider'. Select items appropriate for the sprint duration, prioritizing based on metadata.
+        2. For **EVERY** selected Feature AND **EVERY** selected User Story within that Feature, you **MUST** generate a list of detailed, specific, actionable tasks required to complete it.
+        3. Tasks **MUST** be granular. Examples: "Implement GET /api/weather endpoint", "Design database schema for forecast data", "Create React component for current weather card", "Write Playwright tests for weather widget interaction", "Set up CI/CD pipeline for widget deployment".
+        4. Tasks **MUST** be assigned to a specific role: "Backend", "Frontend", "QA", or "DevOps".
+        5. The generated tasks **MUST** be included as a JSON list under a key named **EXACTLY** `"tasks"`. This `"tasks"` key **MUST** exist within **BOTH** the selected Feature object AND **EACH** selected User Story object in the final JSON output.
+        6. **EACH** task object within the `"tasks"` list **MUST** contain the following keys:
+           - `"title"`: (string) A concise, descriptive task title.
+           - `"description"`: (string) A brief explanation of the task.
+           - `"role"`: (string) The assigned role (e.g., "Backend", "Frontend", "QA", "DevOps").
+           - `"estimate"`: (number) An estimated effort (e.g., hours or story points).
+           - `"priority"`: (number) An integer representing priority (e.g., 1 for High, 2 for Medium, 3 for Low).
+
+        7. Structure the response as a **single, valid JSON object**. The root object must contain `"sprint_name"`, `"duration"`, `"goal"`, and `"selected_items"`. The `"selected_items"` list contains Feature objects. Feature objects contain User Story objects in a `"user_stories"` list. **BOTH** Feature and User Story objects **MUST** contain the `"tasks"` list if tasks were generated for them.
+
+        Example Snippet of Desired JSON Structure:
+        ```json
+        {
+          "sprint_name": "Example Sprint",
+          "duration": 7,
+          "goal": "Achieve X and Y.",
+          "selected_items": [
+            {
+              "id": "feature-id-1",
+              "title": "Feature One",
+              // ... other feature fields ...
+              "tasks": [
+                { "title": "Feature-level task 1", "description": "...", "role": "Backend", "estimate": 4, "priority": 1 },
+                { "title": "Feature-level task 2", "description": "...", "role": "DevOps", "estimate": 2, "priority": 2 }
+              ],
+              "user_stories": [
+                {
+                  "id": "story-id-1a",
+                  "title": "User Story 1a",
+                  // ... other story fields ...
+                  "tasks": [
+                    { "title": "Story 1a task 1", "description": "...", "role": "Frontend", "estimate": 8, "priority": 1 },
+                    { "title": "Story 1a task 2", "description": "...", "role": "QA", "estimate": 3, "priority": 2 }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        ```
+
+        **CRITICAL**: Ensure the `"tasks"` list is populated correctly within **BOTH** features and user stories as shown in the example. If no items are selected for the sprint, return an empty sprint plan JSON as described in the prompt.
+        Respond ONLY with the valid JSON object, enclosed in triple backticks like this:
+        ```json
+        { ... your JSON plan ... }
+        ```"""
+
+        prompt = f"""Backlog Items to Consider for Project ID '{project_id}':
         {json.dumps(backlog_items, indent=2)}
 
         Sprint Duration: {sprint_duration_days} days
 
-        Please create a sprint plan selecting items that can be completed within the sprint duration."""
+        Please create a sprint plan selecting items that can be completed within the sprint duration.
+        If the 'Backlog Items to Consider' list is empty, return a valid JSON object representing an empty sprint plan with an appropriate name, the specified duration, an empty goal, and an empty list for 'selected_items'.
+        Ensure your entire response is ONLY the valid JSON object."""
 
         # Log that we're starting sprint planning
         await self.log_activity(
             activity_type="SprintPlanning",
             description=f"Planning {sprint_duration_days}-day sprint",
-            input_data={"backlog_item_count": len(backlog_items)},
+            input_data={"project_id": project_id},
         )
 
         # Use the LLM to plan the sprint
@@ -78,19 +186,35 @@ class ScrumMasterAgent(BaseAgent):
             return {"error": error}
 
         # Extract JSON from the response
+        self.logger.debug(
+            f"Raw thought received: {thought[:500]}..."
+        )  # Log raw LLM output
         try:
-            # Find JSON content in the response
-            start_idx = thought.find("{")
-            end_idx = thought.rfind("}") + 1
+            # Find JSON content within ```json ... ``` blocks
+            json_match = re.search(r"```json\n(.*)\n```", thought, re.DOTALL)
+            if not json_match:
+                # Fallback: try finding JSON object directly (less reliable)
+                self.logger.warning(
+                    "Could not find ```json block, attempting direct JSON parse."
+                )
+                start_idx = thought.find("{")
+                end_idx = thought.rfind("}") + 1
+                if start_idx == -1 or end_idx == 0:
+                    raise ValueError(
+                        "No JSON object or ```json block found in the response"
+                    )
+                json_str = thought[start_idx:end_idx]
+            else:
+                json_str = json_match.group(1).strip()
 
-            if start_idx == -1 or end_idx == 0:
-                raise ValueError("No JSON object found in the response")
-
-            json_str = thought[start_idx:end_idx]
+            self.logger.debug(f"Attempting to parse JSON: {json_str[:500]}...")
             sprint_plan = json.loads(json_str)
+            self.logger.info("Successfully parsed sprint plan JSON from LLM response.")
 
             # Create a new sprint in the database
-            sprint_id = await self._create_sprint(sprint_plan, sprint_duration_days)
+            sprint_id = await self._create_sprint(
+                project_id, sprint_plan, sprint_duration_days
+            )
             self.sprint_id = sprint_id
 
             # Create tasks for the sprint
@@ -128,7 +252,7 @@ class ScrumMasterAgent(BaseAgent):
             return {"error": error_msg, "raw_response": thought}
 
     async def _create_sprint(
-        self, sprint_plan: Dict[str, Any], duration_days: int
+        self, project_id: str, sprint_plan: Dict[str, Any], duration_days: int
     ) -> str:
         """Create a new sprint in the database."""
         if not self.db_client:
@@ -143,15 +267,16 @@ class ScrumMasterAgent(BaseAgent):
 
         query = """
         INSERT INTO sprints (
-            sprint_id, sprint_name, start_date, end_date,
+            sprint_id, project_id, sprint_name, start_date, end_date,
             goal, created_by, status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         """
 
         await self.db_client.execute(
             query,
             sprint_id,
+            project_id,
             sprint_plan.get("sprint_name", f"Sprint {start_date.strftime('%Y-%m-%d')}"),
             start_date,
             end_date,
@@ -172,42 +297,74 @@ class ScrumMasterAgent(BaseAgent):
 
         # Collect all tasks from the sprint plan
         all_tasks = []
+        self.logger.info(
+            f"Starting task creation for sprint {sprint_id}. Parsing sprint plan: {json.dumps(sprint_plan, indent=2)}"
+        )
 
-        for feature in sprint_plan.get("features", []):
+        for feature in sprint_plan.get(
+            "selected_items", []
+        ):  # Changed from "features" to "selected_items"
             feature_id = feature.get("id")
+            self.logger.debug(
+                f"Processing feature '{feature.get('title')}' (ID: {feature_id}) for tasks."
+            )
 
             # Add tasks from features directly
-            for task in feature.get("tasks", []):
+            for task_data in feature.get("tasks", []):
+                self.logger.debug(
+                    f"  Found task under feature: {task_data.get('title')}"
+                )
                 all_tasks.append(
                     {
-                        "title": task.get("title", "Untitled Task"),
-                        "description": task.get("description", ""),
-                        "role": task.get("role", "Developer"),
-                        "estimate": task.get("estimate", 1),
-                        "priority": task.get("priority", "Medium"),
+                        "title": task_data.get("title", "Untitled Task"),
+                        "description": task_data.get("description", ""),
+                        "role": task_data.get("role", "Developer"),
+                        "estimate": task_data.get("estimate", 1),
+                        "priority": task_data.get("priority", "Medium"),
                         "related_artifact_id": feature_id,
+                        "source": "feature_task",
                     }
                 )
 
             # Add tasks from user stories
             for story in feature.get("user_stories", []):
                 story_id = story.get("id")
+                self.logger.debug(
+                    f"  Processing user story '{story.get('title')}' (ID: {story_id}) under feature '{feature.get('title')}' for tasks."
+                )
 
-                for task in story.get("tasks", []):
+                for task_data in story.get("tasks", []):
+                    self.logger.debug(
+                        f"    Found task under user story: {task_data.get('title')}"
+                    )
                     all_tasks.append(
                         {
-                            "title": task.get("title", "Untitled Task"),
-                            "description": task.get("description", ""),
-                            "role": task.get("role", "Developer"),
-                            "estimate": task.get("estimate", 1),
-                            "priority": task.get("priority", "Medium"),
+                            "title": task_data.get("title", "Untitled Task"),
+                            "description": task_data.get("description", ""),
+                            "role": task_data.get("role", "Developer"),
+                            "estimate": task_data.get("estimate", 1),
+                            "priority": task_data.get("priority", "Medium"),
                             "related_artifact_id": story_id,
+                            "source": "story_task",
                         }
                     )
 
+        self.logger.info(
+            f"Collected {len(all_tasks)} tasks to create for sprint {sprint_id}."
+        )
+        if not all_tasks:
+            self.logger.warning(
+                f"No tasks found in sprint plan for sprint {sprint_id}. Sprint plan details: {json.dumps(sprint_plan, indent=2)}"
+            )
+            return
+
         # Insert all tasks
-        for task in all_tasks:
+        tasks_created_count = 0
+        for i, task_detail in enumerate(all_tasks):
             task_id = str(uuid4())
+            self.logger.debug(
+                f"Attempting to create task {i+1}/{len(all_tasks)} (ID: {task_id}): {task_detail}"
+            )
 
             query = """
             INSERT INTO tasks (
@@ -218,23 +375,42 @@ class ScrumMasterAgent(BaseAgent):
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             """
 
-            await self.db_client.execute(
-                query,
+            params = [
                 task_id,
-                task["title"],
-                task["description"],
+                task_detail["title"],
+                task_detail["description"],
                 datetime.now(),
                 self.agent_id,
                 sprint_id,
-                task["priority"],
-                "BACKLOG",
-                task["estimate"],
+                task_detail["priority"],
+                "BACKLOG",  # Default status
+                task_detail["estimate"],
                 (
-                    [task["related_artifact_id"]]
-                    if task.get("related_artifact_id")
+                    [task_detail["related_artifact_id"]]
+                    if task_detail.get("related_artifact_id")
                     else []
                 ),
+            ]
+
+            self.logger.debug(
+                f"Executing SQL for task {task_id}: Query='{query.strip()}', Params='{params}'"
             )
+
+            try:
+                await self.db_client.execute(query, *params)
+                self.logger.info(
+                    f"Successfully created task {task_id} ('{task_detail['title']}') for sprint {sprint_id}."
+                )
+                tasks_created_count += 1
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to create task {task_id} ('{task_detail['title']}') for sprint {sprint_id}. Error: {e}",
+                    exc_info=True,
+                )
+
+        self.logger.info(
+            f"Finished task creation attempt for sprint {sprint_id}. Successfully created {tasks_created_count}/{len(all_tasks)} tasks."
+        )
 
     async def start_sprint(self, sprint_id: str) -> bool:
         """Start a sprint that has been planned."""

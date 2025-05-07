@@ -4,6 +4,14 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgvector";
 
+-- Projects Table (NEW)
+CREATE TABLE projects (
+    project_id VARCHAR(100) PRIMARY KEY, -- Using VARCHAR for potentially human-readable IDs
+    project_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 -- Agent Metadata
 CREATE TABLE agents (
     agent_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -50,6 +58,7 @@ CREATE TABLE artifacts (
     artifact_type VARCHAR(50) NOT NULL, -- Requirement, UserStory, Design, Code, Test, etc.
     title VARCHAR(255) NOT NULL,
     content TEXT,
+    project_id VARCHAR(100) NOT NULL, -- Added column to link to project
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     created_by UUID REFERENCES agents(agent_id),
     last_modified_at TIMESTAMP,
@@ -82,6 +91,7 @@ CREATE TABLE tasks (
 -- Sprints Table (Added based on ScrumMasterAgent usage)
 CREATE TABLE sprints (
     sprint_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id VARCHAR(100) NOT NULL REFERENCES projects(project_id), -- Added FK
     sprint_name VARCHAR(255) NOT NULL,
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
@@ -94,7 +104,7 @@ CREATE TABLE sprints (
 -- Project Vision Table (Added based on ProductManagerAgent usage)
 CREATE TABLE project_vision (
     vision_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id VARCHAR(100) NOT NULL DEFAULT 'default-project', -- Assuming a default or passed project ID
+    project_id VARCHAR(100) NOT NULL REFERENCES projects(project_id), -- Changed from default, added FK
     title VARCHAR(255) NOT NULL,
     vision_statement TEXT,
     target_audience TEXT,
@@ -137,6 +147,7 @@ CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to);
 CREATE INDEX idx_tasks_status ON tasks(status);
 CREATE INDEX idx_artifacts_type ON artifacts(artifact_type);
 CREATE INDEX idx_artifacts_creator ON artifacts(created_by);
+CREATE INDEX idx_artifacts_project_id ON artifacts(project_id);
 
 -- Additional helpful indexes
 CREATE INDEX idx_agent_messages_timestamp ON agent_messages(timestamp DESC);

@@ -60,12 +60,11 @@ class EnhancedVectorMemory:
                 )
 
                 # Use HNSW index type and halfvec operator class for high-dimensional halfvec
-                await self.db_client.execute(
-                    f"""
+                create_index_query = f"""
                 CREATE INDEX IF NOT EXISTS idx_enhanced_vector_embedding
                 ON enhanced_vector_storage USING hnsw (embedding halfvec_cosine_ops);
                 """
-                )
+                await self.db_client.execute(create_index_query)
 
                 # Create indexes for vector relationships (idempotent)
                 await self.db_client.execute(
