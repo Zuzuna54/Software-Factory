@@ -9,6 +9,7 @@ from uuid import uuid4
 from datetime import datetime, timedelta
 
 from ..base_agent import BaseAgent
+from ..communication.protocol import MessageType
 
 
 class ScrumMasterAgent(BaseAgent):
@@ -465,12 +466,30 @@ class ScrumMasterAgent(BaseAgent):
         )
 
         # Notify the assigned agent
-        await self.send_message(
-            receiver_id=agent_id,
-            content=f"You have been assigned task {task_id}. Please begin work on it.",
-            message_type="TASK_ASSIGNMENT",
-            related_task_id=task_id,
-        )
+        # await self.send_message(
+        #     receiver_id=agent_id,
+        #     content=f"You have been assigned task {task_id}. Please begin work on it.",
+        #     message_type="TASK_ASSIGNMENT",
+        #     related_task_id=task_id,
+        # )
+
+        # Create and send an AgentMessage object
+        try:
+            agent_message = self.comm_protocol.create_task_assignment(
+                sender=self.agent_id,
+                receiver=agent_id,
+                task_id=task_id,
+                content=f"You have been assigned task {task_id}. Please begin work on it.",
+            )
+            await self.send_message(agent_message)
+            self.logger.info(
+                f"Sent TASK_ASSIGNMENT message for task {task_id} to agent {agent_id}"
+            )
+        except Exception as e:
+            self.logger.error(
+                f"Failed to send TASK_ASSIGNMENT message for task {task_id} to agent {agent_id}: {e}",
+                exc_info=True,
+            )
 
         return True
 

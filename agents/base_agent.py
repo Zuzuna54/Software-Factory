@@ -44,6 +44,12 @@ class BaseAgent:
         self.agent_id = agent_id or str(uuid.uuid4())
         self.agent_type = agent_type
         self.agent_name = agent_name
+
+        # Use agent-specific logger name
+        self.logger = logging.getLogger(
+            f"agent.{self.agent_type}.{self.agent_id.split('-')[0]}"
+        )
+
         self.llm_provider = llm_provider
         self.db_client = db_client
         self.vector_memory = vector_memory
@@ -80,10 +86,7 @@ class BaseAgent:
             )
 
         self.capabilities = capabilities or {}
-        # Use agent-specific logger name
-        self.logger = logging.getLogger(
-            f"agent.{self.agent_type}.{self.agent_id.split('-')[0]}"
-        )
+        # self.logger initialization was MOVED to an earlier point in this __init__ method.
 
         # Defer agent registration until DB client is confirmed available
         if not self.db_client:  # Check kept for initial warning

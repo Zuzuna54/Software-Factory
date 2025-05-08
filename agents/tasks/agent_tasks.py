@@ -264,119 +264,121 @@ def assign_task_to_agent_task(self, task_id: str, agent_id: str) -> Dict[str, An
     logger.info(
         f"[Task ID: {self.request.id}] Assigning task {task_id} to agent {agent_id}."
     )
-    components = {}
-    celery_task_id = self.request.id
-    try:
-        db_client = PostgresClient()
-        run_async(db_client.initialize(), task_id=celery_task_id)
-        comm_protocol = CommunicationProtocol()
-        components = {"db_client": db_client, "comm_protocol": comm_protocol}
+    celery_task_id = self.request.id  # Capture for run_async
 
-        sm_agent = ScrumMasterAgent(
-            db_client=db_client,
-            comm_protocol=comm_protocol,
-        )
-        # --- Register agent before use ---
-        # Ensure DB connection is established before registration
-        run_async(sm_agent.complete_initialization(), task_id=celery_task_id)
-        # --------------------------------
+    async def _async_main() -> Dict[str, Any]:
+        components = {}
+        try:
+            logger.debug(
+                f"Task {celery_task_id}: Initializing components for assign_task..."
+            )
+            components = await _initialize_components()
+            logger.debug(
+                f"Task {celery_task_id}: Components initialized for assign_task."
+            )
 
-        success = run_async(
-            sm_agent.assign_task(task_id, agent_id), task_id=celery_task_id
-        )
-        logger.info(
-            f"[Task ID: {celery_task_id}] Task assignment completed (Success: {success})."
-        )
-        return {"success": success, "task_id": task_id, "agent_id": agent_id}
+            sm_agent = ScrumMasterAgent(
+                db_client=components["db_client"],
+                llm_provider=components["llm_provider"],
+                vector_memory=components[
+                    "vector_memory"
+                ],  # Ensure vector_memory is passed
+                comm_protocol=components["comm_protocol"],
+                # agent_id can be omitted to generate a new one for this task-specific agent
+                agent_name=f"ScrumMasterAssigner-{celery_task_id[:8]}",  # Unique name
+            )
+            logger.debug(
+                f"Task {celery_task_id}: ScrumMasterAgent (for assign_task) instantiated."
+            )
 
-    except Exception as e:
-        logger.error(
-            f"[Task ID: {celery_task_id}] Error in task assignment: {str(e)}",
-            exc_info=True,
-        )
-        return {"error": str(e), "task_id": task_id, "agent_id": agent_id}
-    finally:
-        if components:
-            logger.debug(f"Running cleanup for task {celery_task_id}")
-            run_async(_cleanup_components(components), task_id=celery_task_id)
-        # Clean up loop reference
-        global _task_loops
-        if celery_task_id in _task_loops:
-            # (Add similar loop cleanup logic as above)
-            try:
-                loop = _task_loops[celery_task_id]
-                if not loop.is_running() and not loop.is_closed():
-                    logger.debug(
-                        f"Loop for task {celery_task_id} potentially closable."
-                    )
-                del _task_loops[celery_task_id]
-                logger.debug(f"Cleaned up loop reference for task {celery_task_id}")
-            except Exception as loop_clean_e:
-                logger.error(
-                    f"Error during loop cleanup for task {celery_task_id}: {loop_clean_e}"
+            await sm_agent.complete_initialization()
+            logger.debug(
+                f"Task {celery_task_id}: ScrumMasterAgent (for assign_task) initialization completed."
+            )
+
+            success = await sm_agent.assign_task(task_id, agent_id)
+            logger.info(
+                f"[Task ID: {celery_task_id}] Task assignment completed (Success: {success})."
+            )
+            return {"success": success, "task_id": task_id, "agent_id": agent_id}
+        except Exception as e:
+            logger.error(
+                f"[Task ID: {celery_task_id}] Error in task assignment: {str(e)}",
+                exc_info=True,
+            )
+            return {"error": str(e), "task_id": task_id, "agent_id": agent_id}
+        finally:
+            if components:
+                logger.debug(
+                    f"Task {celery_task_id}: Running cleanup in assign_task _async_main finally block"
                 )
+                await _cleanup_components(components)
+
+    return asyncio.run(_async_main())
 
 
 @shared_task(bind=True)
 def update_task_status_task(
-    self, task_id: str, status: str, agent_id: Optional[str] = None
+    self,
+    task_id: str,
+    status: str,
+    agent_id_updater: Optional[str] = None,  # Renamed agent_id to avoid clash
 ) -> Dict[str, Any]:
     """
     Celery task wrapper for ScrumMasterAgent.update_task_status.
     """
     logger.info(
-        f"[Task ID: {self.request.id}] Updating task {task_id} status to {status}. Agent notified: {agent_id}"
+        f"[Task ID: {self.request.id}] Updating task {task_id} to status {status}. Updater: {agent_id_updater}"
     )
-    components = {}
-    celery_task_id = self.request.id
-    try:
-        db_client = PostgresClient()
-        run_async(db_client.initialize(), task_id=celery_task_id)
-        comm_protocol = CommunicationProtocol()
-        components = {"db_client": db_client, "comm_protocol": comm_protocol}
+    celery_task_id = self.request.id  # Capture for run_async
 
-        sm_agent = ScrumMasterAgent(
-            db_client=db_client,
-            comm_protocol=comm_protocol,
-        )
-        # --- Register agent before use ---
-        # Ensure DB connection is established before registration
-        run_async(sm_agent.complete_initialization(), task_id=celery_task_id)
-        # --------------------------------
+    async def _async_main() -> Dict[str, Any]:
+        components = {}
+        try:
+            logger.debug(
+                f"Task {celery_task_id}: Initializing components for update_task_status..."
+            )
+            components = await _initialize_components()
+            logger.debug(
+                f"Task {celery_task_id}: Components initialized for update_task_status."
+            )
 
-        # Update the task status
-        success = run_async(
-            sm_agent.update_task_status(task_id, status, agent_id),
-            task_id=celery_task_id,
-        )
-        logger.info(
-            f"[Task ID: {celery_task_id}] Task status update completed (Success: {success})."
-        )
-        return {"success": success, "task_id": task_id, "status": status}
+            sm_agent = ScrumMasterAgent(
+                db_client=components["db_client"],
+                llm_provider=components["llm_provider"],
+                vector_memory=components[
+                    "vector_memory"
+                ],  # Ensure vector_memory is passed
+                comm_protocol=components["comm_protocol"],
+                agent_name=f"ScrumMasterUpdater-{celery_task_id[:8]}",  # Unique name
+            )
+            logger.debug(
+                f"Task {celery_task_id}: ScrumMasterAgent (for update_task_status) instantiated."
+            )
 
-    except Exception as e:
-        logger.error(
-            f"[Task ID: {celery_task_id}] Error in task status update: {str(e)}",
-            exc_info=True,
-        )
-        return {"error": str(e), "task_id": task_id, "status": status}
-    finally:
-        if components:
-            logger.debug(f"Running cleanup for task {celery_task_id}")
-            run_async(_cleanup_components(components), task_id=celery_task_id)
-        # Clean up loop reference
-        global _task_loops
-        if celery_task_id in _task_loops:
-            # (Add similar loop cleanup logic as above)
-            try:
-                loop = _task_loops[celery_task_id]
-                if not loop.is_running() and not loop.is_closed():
-                    logger.debug(
-                        f"Loop for task {celery_task_id} potentially closable."
-                    )
-                del _task_loops[celery_task_id]
-                logger.debug(f"Cleaned up loop reference for task {celery_task_id}")
-            except Exception as loop_clean_e:
-                logger.error(
-                    f"Error during loop cleanup for task {celery_task_id}: {loop_clean_e}"
+            await sm_agent.complete_initialization()
+            logger.debug(
+                f"Task {celery_task_id}: ScrumMasterAgent (for update_task_status) initialization completed."
+            )
+
+            success = await sm_agent.update_task_status(
+                task_id, status, agent_id_updater
+            )
+            logger.info(
+                f"[Task ID: {celery_task_id}] Task status update completed (Success: {success})."
+            )
+            return {"success": success, "task_id": task_id, "new_status": status}
+        except Exception as e:
+            logger.error(
+                f"[Task ID: {celery_task_id}] Error in task status update: {str(e)}",
+                exc_info=True,
+            )
+            return {"error": str(e), "task_id": task_id, "status_attempted": status}
+        finally:
+            if components:
+                logger.debug(
+                    f"Task {celery_task_id}: Running cleanup in update_task_status _async_main finally block"
                 )
+                await _cleanup_components(components)
+
+    return asyncio.run(_async_main())
