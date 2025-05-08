@@ -1704,3 +1704,78 @@ AttributeError: module 'select' has no attribute 'kevent'
 2025-05-07 20:14:11,103 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
 2025-05-07 20:14:11,106 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
 2025-05-07 20:14:11,106 - agent.cli - INFO - CLI resources closed.
+2025-05-07 20:24:04,231 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-07 20:24:04,231 - agent.cli - INFO - Initializing CLI services...
+2025-05-07 20:24:04,231 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-07 20:24:04,254 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-07 20:24:04,254 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-07 20:24:04,254 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-07 20:24:04,254 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-07 20:24:04,259 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-07 20:24:04,259 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-07 20:24:04,259 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-07 20:24:04,260 - agent.cli - INFO - Attempting to dispatch Celery task: analyze_requirements
+2025-05-07 20:24:04,296 - agent.cli - INFO - Dispatched task 'analyze_requirements' with ID: 2ba819a5-db1c-4857-86cf-1b78a9912fd6
+2025-05-07 20:24:04,296 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-07 20:24:04,299 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-07 20:24:04,299 - agent.cli - INFO - CLI resources closed.
+2025-05-07 20:25:02,028 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-07 20:25:02,028 - agent.cli - INFO - Initializing CLI services...
+2025-05-07 20:25:02,028 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-07 20:25:02,045 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-07 20:25:02,045 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-07 20:25:02,045 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-07 20:25:02,045 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-07 20:25:02,049 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-07 20:25:02,049 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-07 20:25:02,049 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-07 20:25:02,050 - agent.cli - INFO - Attempting to dispatch Celery task: plan_sprint
+2025-05-07 20:25:02,085 - agent.cli - INFO - Dispatched task 'plan_sprint' with ID: 32e23c8b-8d2a-4862-b4f3-918b40a5a960
+2025-05-07 20:25:02,086 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-07 20:25:02,088 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-07 20:25:02,089 - agent.cli - INFO - CLI resources closed.
+2025-05-07 20:26:09,541 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-07 20:26:09,541 - agent.cli - INFO - Initializing CLI services...
+2025-05-07 20:26:09,541 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-07 20:26:09,561 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-07 20:26:09,561 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-07 20:26:09,561 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-07 20:26:09,561 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-07 20:26:09,566 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-07 20:26:09,566 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-07 20:26:09,566 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-07 20:26:09,566 - agent.cli - INFO - Attempting to dispatch Celery task: plan_sprint
+2025-05-07 20:26:09,602 - agent.cli - INFO - Dispatched task 'plan_sprint' with ID: 04755ad8-cad0-46e6-bccc-9c550e56c74e
+2025-05-07 20:26:09,602 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-07 20:26:09,605 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-07 20:26:09,605 - agent.cli - INFO - CLI resources closed.
+2025-05-07 20:26:56,202 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-07 20:26:56,202 - agent.cli - INFO - Initializing CLI services...
+2025-05-07 20:26:56,202 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-07 20:26:56,220 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-07 20:26:56,220 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-07 20:26:56,220 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-07 20:26:56,220 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-07 20:26:56,224 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-07 20:26:56,224 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-07 20:26:56,224 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-07 20:26:56,224 - agent.cli - INFO - Attempting to dispatch Celery task: assign_task
+2025-05-07 20:26:56,260 - agent.cli - INFO - Dispatched task 'assign_task' with ID: b8775f1a-2072-43e2-8d4f-d5438b67c8be
+2025-05-07 20:26:56,260 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-07 20:26:56,263 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-07 20:26:56,263 - agent.cli - INFO - CLI resources closed.
+2025-05-07 20:27:12,268 - agent.cli - INFO - Loaded environment variables from: /Users/giorgobg/Desktop/Software Factory/.env
+2025-05-07 20:27:12,268 - agent.cli - INFO - Initializing CLI services...
+2025-05-07 20:27:12,268 - agents.db.postgres - INFO - Initializing PostgreSQL connection pool...
+2025-05-07 20:27:12,288 - agents.db.postgres - INFO - PostgreSQL connection pool initialized successfully.
+2025-05-07 20:27:12,288 - agents.llm.vertex_gemini_provider - INFO - Configured Google Generative AI SDK with API key.
+2025-05-07 20:27:12,288 - agents.llm.vertex_gemini_provider - INFO - Initialized Gemini API model: gemini-1.5-flash-001
+2025-05-07 20:27:12,288 - agent.memory.enhanced_vector - INFO - Initializing EnhancedVectorMemory system...
+2025-05-07 20:27:12,292 - agent.memory.enhanced_vector - INFO - Enhanced vector memory system initialized successfully.
+2025-05-07 20:27:12,293 - agent.factory - INFO - AgentFactory initialized with shared dependencies.
+2025-05-07 20:27:12,293 - agent.cli - INFO - CLI services initialized successfully.
+2025-05-07 20:27:12,293 - agent.cli - INFO - Attempting to dispatch Celery task: update_task_status
+2025-05-07 20:27:12,328 - agent.cli - INFO - Dispatched task 'update_task_status' with ID: 6306bfec-3d77-4723-ac06-6a07e08dc037
+2025-05-07 20:27:12,328 - agents.db.postgres - INFO - Closing PostgreSQL connection pool...
+2025-05-07 20:27:12,330 - agents.db.postgres - INFO - PostgreSQL connection pool closed.
+2025-05-07 20:27:12,331 - agent.cli - INFO - CLI resources closed.
