@@ -1,0 +1,103 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Simplicity First
+
+## Objective
+
+Always choose the **simplest possible solution** that meets the explicit requirements. Introduce additional layers, patterns or dependencies **only** when a simpler option demonstrably fails. This approach leads to more maintainable, testable, and understandable code.
+
+## Core Principles
+
+### 1. Embrace Simplicity
+
+- **Intentional Design**: Start with the simplest approach that works
+- **Avoid Premature Complexity**: Don't add complexity without proven necessity
+- **Resist "Resume-Driven Development"**: Choose established patterns over trendy abstractions
+
+### 2. Implementation Guidelines
+
+1. **Use Native Constructs**
+   - Prefer native language/framework constructs over custom wrappers
+   - Leverage the standard library before adding dependencies
+   - Choose built-in patterns over custom implementations
+
+2. **Limit Abstraction**
+   - Ask "**Why can't a simpler alternative work?**" before adding abstraction
+   - Create abstractions only after seeing recurring patterns (Rule of Three)
+   - Document the reason for any abstraction layer
+
+3. **Keep Functions Focused**
+   - Keep new functions ≤ 40 LOC; split if larger
+   - Each function should do one thing well
+   - Use descriptive names over comments to explain function purpose
+
+4. **Avoid Speculation**
+   - No speculative features for "future needs" unless explicitly requested
+   - Implement only what's currently needed (YAGNI principle)
+   - Refactor for extensibility only when requirements change
+
+## Examples
+
+### Good Example: Direct Approach
+
+```python
+# Good: Simple, direct solution
+def get_user_by_id(user_id):
+    return db.query(User).filter(User.id == user_id).first()
+```
+
+### Bad Example: Unnecessary Abstraction
+
+```python
+# Bad: Overly complex for simple operation
+class UserRetriever:
+    def __init__(self, db_session):
+        self.db_session = db_session
+        
+    def get_user_strategy(self, strategy_type):
+        strategies = {
+            'id': self._get_by_id,
+            'email': self._get_by_email
+        }
+        return strategies.get(strategy_type)
+        
+    def _get_by_id(self, user_id):
+        return self.db_session.query(User).filter(User.id == user_id).first()
+        
+# Usage:
+# retriever = UserRetriever(db)
+# get_user = retriever.get_user_strategy('id')
+# user = get_user(123)
+```
+
+## Decision Process
+
+When considering adding complexity, follow this process:
+
+1. **Start Simple**: Implement the simplest approach that meets requirements
+2. **Evaluate**: Only if issues arise, consider more complex solutions
+3. **Justify**: Explicitly document why complexity is necessary
+4. **Refactor**: If complexity is needed, refactor incrementally rather than rewriting
+
+## Verification Checklist
+
+- [ ] Implementation uses the simplest known pattern for the requirement
+- [ ] No unused parameters, dead code or vestigial TODOs exist
+- [ ] Any added complexity is justified in commit message
+- [ ] Functions are small, focused and have clear responsibilities
+- [ ] Abstractions only exist where multiple use cases are demonstrated
+
+## Related Rules
+
+- @project-overview for overall project principles
+- @no-code-duplication for balancing simplicity with DRY principles
+- @dependency-audit for managing external dependencies
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced with examples, clarified principles, and added verification details

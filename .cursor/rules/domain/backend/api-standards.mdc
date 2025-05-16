@@ -1,0 +1,287 @@
+---
+description: 
+globs: .py
+alwaysApply: false
+---
+# Backend API Standards
+
+## Objective
+
+Establish consistent, secure, and maintainable patterns for FastAPI backend development, ensuring high-performance, well-documented, and reliable API endpoints.
+
+## API Architecture
+
+### 1. Router Organization
+
+- **Domain-Driven Structure**
+  - Use FastAPI `APIRouter` per domain (e.g., `users.router`, `auth.router`)
+  - Group related endpoints within the same router
+  - Mount routers at the application level with appropriate prefixes
+
+- **File Structure**
+  - One router per file for clear organization
+  - Use consistent naming: `<domain>_router.py`
+  - Place domain-specific models, schemas, and dependencies in adjacent files
+
+```python
+# app/api/routers/users_router.py
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.schemas.users import UserCreate, UserResponse
+from app.services.users import UserService
+from app.core.deps import get_db, get_current_user
+
+router = APIRouter(prefix="/users", tags=["Users"])
+
+@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user(
+    user_data: UserCreate,
+    db = Depends(get_db),
+):
+    """Create a new user."""
+    return await UserService(db).create_user(user_data)
+
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(
+    user_id: int,
+    current_user = Depends(get_current_user),
+    db = Depends(get_db),
+):
+    """Get a user by ID."""
+    return await UserService(db).get_user(user_id)
+```
+
+### 2. Request/Response Modeling
+
+- **Pydantic Models**
+  - Annotate every endpoint with a Pydantic v2 `BaseModel` for request/response
+  - Define clear validation rules in model definitions
+  - Use appropriate field types and constraints
+  - Include descriptive examples in model Config
+
+```python
+# app/schemas/users.py
+from pydantic import BaseModel, Field, EmailStr, field_validator
+from datetime import datetime
+from typing import Optional
+
+class UserBase(BaseModel):
+    email: EmailStr = Field(..., description="User email address", examples=["user@example.com"])
+    username: str = Field(..., min_length=3, max_length=50, description="Username for display", examples=["johndoe"])
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8, description="User password")
+    
+    @field_validator('password')
+    def password_complexity(cls, v):
+        if not any(char.isdigit() for char in v):
+            raise ValueError('Password must contain at least one digit')
+        if not any(char.isupper() for char in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        return v
+
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+```
+
+## Database Access
+
+### 1. SQLAlchemy Integration
+
+- **Async Sessions Only**
+  - Use SQLAlchemy 2.0 core **async** sessions for all database access
+  - Avoid blocking calls in request handlers
+  - Implement proper connection pooling for async operations
+
+```python
+# app/db/session.py
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+DATABASE_URL = "postgresql+asyncpg://user:password@localhost/dbname"
+
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    future=True,
+    pool_size=10,
+    max_overflow=20,
+)
+
+AsyncSessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+async def get_db():
+    """Dependency for getting async db session."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+```
+
+### 2. Repository Pattern
+
+- Implement repository classes for database operations
+- Keep database queries out of route handlers
+- Use service layer to coordinate complex operations
+
+## Background Processing
+
+### 1. Celery Integration
+
+- **Task Queue**
+  - Use Celery for asynchronous background processing
+  - Default queue is `"default"` unless specified
+  - Structure tasks in domain-specific modules
+
+```python
+# app/tasks/email_tasks.py
+from app.core.celery import celery_app
+
+@celery_app.task(
+    name="send_welcome_email",
+    queue="emails",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
+def send_welcome_email(user_id: int, email: str):
+    """Send welcome email to new user."""
+    # Implementation
+    # ...
+```
+
+### 2. Task Execution
+
+- Keep tasks small and focused
+- Use proper error handling and retry mechanisms
+- Store task results for tracking and debugging
+
+## External Integrations
+
+### 1. HTTP Client Standards
+
+- **Resilient HTTP Calls**
+  - Wrap outbound HTTP calls with tenacity retry
+  - Use exponential backoff for retries
+  - Set appropriate timeouts for all requests
+
+```python
+# app/clients/external_api.py
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+import httpx
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=4, max=60),
+    stop=stop_after_attempt(5),
+    retry=retry_if_exception_type((httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError))
+)
+async def fetch_external_data(resource_id: str) -> dict:
+    """Fetch data from external API with retry logic."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(f"https://api.example.com/resources/{resource_id}")
+        response.raise_for_status()
+        return response.json()
+```
+
+### 2. API Client Organization
+
+- Create dedicated client classes for external services
+- Implement proper authentication and error handling
+- Log all external API calls for monitoring
+
+## Error Handling
+
+### 1. Exception Handling
+
+- Use custom exception classes for domain-specific errors
+- Implement proper exception handlers at the application level
+- Return consistent error responses
+
+```python
+# app/core/exceptions.py
+from fastapi import HTTPException, status
+
+class NotFoundError(HTTPException):
+    def __init__(self, detail: str = "Resource not found"):
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+class AuthenticationError(HTTPException):
+    def __init__(self, detail: str = "Authentication failed"):
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=detail,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+```
+
+### 2. Validation
+
+- Leverage Pydantic for input validation
+- Implement business logic validation in service layer
+- Return clear validation error messages
+
+## API Documentation
+
+### 1. OpenAPI Integration
+
+- Provide detailed descriptions for all endpoints
+- Include examples for request/response models
+- Document error responses and status codes
+
+```python
+@router.post(
+    "/",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new user",
+    description="Creates a new user with the provided details",
+    responses={
+        201: {"description": "User created successfully"},
+        400: {"description": "Invalid input"},
+        409: {"description": "Email already registered"},
+    }
+)
+```
+
+### 2. Documentation Generation
+
+- Keep API docs up-to-date with code changes
+- Use FastAPI's automatic documentation features
+- Add supplemental documentation for complex endpoints
+
+## Verification Checklist
+
+- [ ] Endpoints are organized by domain in appropriate routers
+- [ ] All request/response payloads use Pydantic models
+- [ ] Database access is async with proper session handling
+- [ ] Background tasks use Celery with appropriate queue configuration
+- [ ] External API calls implement retry logic with tenacity
+- [ ] Comprehensive error handling with clear error messages
+- [ ] Complete API documentation with examples
+
+## Related Rules
+
+- @project-overview for overall technology stack
+- @backend/database-standards for detailed database guidelines
+- @backend/security-standards for API security best practices
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced with detailed API patterns, examples, and best practices

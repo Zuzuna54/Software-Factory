@@ -1,0 +1,114 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# No Code Duplication
+
+## Objective
+
+Before writing new code, **search the entire repository** for similar functions, classes or utilities to avoid duplication. This prevents maintenance overhead, inconsistencies, and divergent implementations of the same concept.
+
+## Code Search Process
+
+### 1. Repository Scanning
+
+1. **Semantic Search First**
+   - Run a semantic search with key terms from the intended feature
+   - Use function names, domain concepts, and technical terms as search queries
+   - Example queries: "user authentication", "data validation", "pagination"
+
+2. **Targeted Search Patterns**
+   - For utility functions: Search for verb+noun combinations (e.g., "format date", "validate email")
+   - For components: Search for noun+type (e.g., "button component", "modal dialog")
+   - For algorithms: Search for specific algorithm names or problem descriptions
+
+3. **Scope Considerations**
+   - Search both frontend and backend code for cross-cutting concerns
+   - Check test files for utility functions that might be useful in production code
+   - Look in shared/common directories first before expanding search
+
+### 2. Reuse Decision Process
+
+1. **Evaluation Criteria**
+   - If existing code offers 80%+ of required behavior, **reuse or extend it** instead of rewriting
+   - Consider the frequency and importance of the missing 20% (if any)
+   - Evaluate if extending the existing code would maintain its cohesion and purpose
+
+2. **Extension Patterns**
+   - Add optional parameters with sensible defaults to extend functionality
+   - Use composition over inheritance when extending complex components
+   - Consider implementing the Strategy pattern for variations of algorithms
+
+3. **When to Create New**
+   - Add new symbols only when:
+     - (a) Functionality is genuinely novel
+     - (b) Reuse would create tight coupling between unrelated concerns
+     - (c) Existing implementation has fundamental design issues
+
+## Examples
+
+### Good Example: Reuse and Extend
+
+```typescript
+// GOOD: Extending an existing utility function
+
+// Existing function in utils/formatting.ts
+export function formatCurrency(value: number, currency: string = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(value);
+}
+
+// Extension in new component (reusing with different defaults)
+import { formatCurrency } from '../../utils/formatting';
+
+// Use the existing function with EUR currency
+const formattedPrice = formatCurrency(product.price, 'EUR');
+```
+
+### Bad Example: Duplication
+
+```typescript
+// BAD: Creating duplicate functionality
+
+// In new component file - duplicating existing logic
+function formatProductPrice(price: number): string {
+  // This duplicates the formatCurrency function
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(price);
+}
+```
+
+## Documentation Requirements
+
+When reusing code:
+- Add comments referencing the original source if used in a new context
+- Document any limitations or assumptions inherited from the reused code
+
+When creating new code despite similar existing functions:
+- Clearly document why existing code couldn't be reused
+- Explain the fundamental differences that justified a new implementation
+
+## Verification Checklist
+
+- [ ] Memory search results attached to the "thinking" step
+- [ ] Reuse opportunities identified and evaluated
+- [ ] If extending existing code: changes maintain backward compatibility
+- [ ] If creating new code: commit message cites why reuse wasn't possible
+- [ ] Similar functionality unified when discovered during development
+
+## Related Rules
+
+- @simplicity-first for balancing DRY with over-engineering
+- @dependency-audit for reusing libraries instead of custom code
+- @exact-scope for ensuring implementations match requirements
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced with search strategies, examples, and improved verification checks

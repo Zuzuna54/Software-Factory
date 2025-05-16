@@ -1,0 +1,116 @@
+---
+description: ## Objective  Define a consistent approach to code reviews in the autonomous multi-agent development environment, focusing on quality assurance, knowledge sharing, and maintaining high standards throughout the project.
+globs: 
+alwaysApply: false
+---
+# Automated Code Review Guidelines
+
+## Objective
+
+Define a consistent approach to code reviews in the autonomous multi-agent development environment, focusing on quality assurance, knowledge sharing, and maintaining high standards throughout the project.
+
+## Review Process
+
+### 1. Pre-Review Checks
+
+Before submitting code for review, ensure:
+
+1. All tests pass locally
+2. Linting shows no errors or warnings
+3. Code follows project style guidelines
+4. Documentation is updated
+5. Changes are focused and minimal for the task at hand
+
+### 2. Review Scope
+
+Code reviews should focus on:
+
+- **Correctness**: Does the code work as intended?
+- **Security**: Are there potential vulnerabilities?
+- **Efficiency**: Is the solution optimal for the problem?
+- **Readability**: Is the code clear and maintainable?
+- **Architecture**: Does the solution fit the project's architecture?
+- **Test coverage**: Are there sufficient tests?
+
+### 3. Review Automation
+
+For automated review tasks:
+
+- Use static analysis tools to detect common issues
+- Apply automated formatting checks
+- Verify test coverage metrics
+- Check for dependency issues
+- Ensure documentation completeness
+
+## Review Guidelines
+
+### Code Quality
+
+1. **Readability**
+   - Variable/function names should clearly indicate their purpose
+   - Complex logic should include explanatory comments
+   - Functions should do one thing and do it well
+
+2. **Consistency**
+   - Follow established patterns in the codebase
+   - Use consistent naming conventions
+   - Maintain consistent error handling approaches
+
+3. **Test Coverage**
+   - Every feature should have corresponding tests
+   - Edge cases should be tested
+   - Mocks should be used appropriately
+
+### Security Standards
+
+1. **Input Validation**
+   - Validate all external inputs
+   - Sanitize data before storage or display
+   - Use parameterized queries for database operations
+
+2. **Authentication & Authorization**
+   - Verify permissions on all secured endpoints
+   - Follow least privilege principle
+   - Use secure authentication methods
+
+### Performance Considerations
+
+1. **Database Operations**
+   - Optimize database queries
+   - Use proper indexing
+   - Consider caching for frequently accessed data
+
+2. **Frontend Performance**
+   - Minimize render cycles
+   - Optimize bundle size
+   - Implement appropriate lazy loading
+
+## Review Response Guidelines
+
+When responding to code review comments:
+
+1. **Acknowledge all comments** with either a change or explanation
+2. **Avoid defensiveness** - focus on the code, not the person
+3. **Ask clarifying questions** if the comment isn't clear
+4. **Explain complex changes** when implementing review suggestions
+
+## Verification Checklist
+
+- [ ] Code follows project style guidelines and conventions
+- [ ] All new code has appropriate test coverage
+- [ ] Security considerations are addressed
+- [ ] Documentation is updated to reflect changes
+- [ ] No performance regressions introduced
+- [ ] Code is sufficiently modular and maintainable
+
+## Related Rules
+
+- @project-overview for overall project standards
+- @simplicity-first for code quality principles
+- @security-standards for detailed security requirements
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Initial version

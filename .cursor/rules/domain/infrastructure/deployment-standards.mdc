@@ -1,0 +1,171 @@
+---
+description: Establish consistent, reliable, and secure deployment practices for the autonomous multi-agent system using Google Cloud Platform services, ensuring smooth continuous deployment with proper monitoring and rollback capabilities.
+globs: 
+alwaysApply: false
+---
+# Deployment & Infrastructure Standards
+
+## Objective
+
+Establish consistent, reliable, and secure deployment practices for the autonomous multi-agent system using Google Cloud Platform services, ensuring smooth continuous deployment with proper monitoring and rollback capabilities.
+
+## Infrastructure as Code
+
+### 1. Container Registry
+
+- **Build Container Images**
+  - Use **Cloud Build** for all container builds
+  - Store Dockerfile at repository root
+  - Implement multi-stage builds to minimize image sizes
+  - Apply least-privilege principles in container execution
+
+- **Image Storage**
+  - Store all images in **Artifact Registry** 
+  - Standard path: `us-central1-docker.pkg.dev/project/ai-team/*`
+  - Tag images with semantic version and git commit hash
+  - Implement vulnerability scanning for all container images
+
+### 2. Cloud Build Configuration
+
+```yaml
+# cloudbuild.yaml
+steps:
+  # Test step
+  - name: 'python:3.12'
+    entrypoint: python
+    args: ['-m', 'pytest', '-v']
+    
+  # Build step
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/project/ai-team/service:$COMMIT_SHA', '.']
+    
+  # Database migration step
+  - name: 'us-central1-docker.pkg.dev/project/ai-team/service:$COMMIT_SHA'
+    entrypoint: 'alembic'
+    args: ['upgrade', 'head']
+    env:
+      - 'DB_CONNECTION_STRING=$$DB_SECRET'
+    secretEnv: ['DB_SECRET']
+    
+  # Push container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/project/ai-team/service:$COMMIT_SHA']
+    
+  # Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'service'
+      - '--image=us-central1-docker.pkg.dev/project/ai-team/service:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      
+secrets:
+  - kmsKeyName: projects/project/locations/global/keyRings/build/cryptoKeys/deployment
+    secretEnv:
+      DB_SECRET: base64-encoded-secret
+```
+
+## Deployment Process
+
+### 1. Deployment Automation
+
+- **CI/CD Pipeline**
+  - Automated deployments triggered by successful PR merges to main branch
+  - Service-specific pipelines defined in repository
+  - Environment-specific configurations stored in Secret Manager
+
+- **Progressive Rollout**
+  - Deploy via **Cloud Run** revisions with traffic splitting
+  - Follow canary deployment pattern for production updates
+  - Direct 100% traffic to new revision only after health verification
+
+### 2. Health Checking
+
+- **Readiness Verification**
+  - Each service must expose a `/healthz` endpoint
+  - New revision receives traffic only after `/healthz` returns 200 three times
+  - Health check must verify all critical dependencies (database, cache, etc.)
+  
+- **Health Check Example**
+
+```python
+@app.get("/healthz", status_code=200)
+async def health_check():
+    # Check database connection
+    try:
+        await db.execute("SELECT 1")
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database connection failed")
+        
+    # Check cache connection
+    try:
+        await redis.ping()
+    except Exception:
+        raise HTTPException(status_code=503, detail="Cache connection failed")
+        
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+```
+
+## Database Management
+
+### 1. Schema Migrations
+
+- **Migration Process**
+  - Run DB migrations inside a Cloud Build step using `alembic upgrade head`
+  - Store migration scripts in version control
+  - Migrations must be idempotent and reversible
+  - Execute migrations before deploying new application version
+
+- **Migration Best Practices**
+  - Test migrations in staging environment before production
+  - Avoid destructive operations in migrations (prefer add-then-deprecate pattern)
+  - Include data migration for schema changes that affect existing data
+
+### 2. Backup & Recovery
+
+- Daily automated backups of all databases
+- Retention policy: 7 daily, 4 weekly, 3 monthly backups
+- Quarterly disaster recovery testing
+
+## Rollback & Recovery
+
+### 1. Rollback Strategy
+
+- **Automated Rollback**
+  - Automatic rollback if health checks fail during deployment
+  - Monitor error rates after deployment with alerting thresholds
+  
+- **Manual Rollback**
+  - Use `gcloud run services update --revision` to direct traffic to previous stable revision
+  - Example: `gcloud run services update service-name --revision=service-name-00001-abc --region=us-central1`
+  - Document stable revision IDs in deployment logs
+
+### 2. Incident Response
+
+- Predefined incident severity levels with response procedures
+- Automated alerting for anomalous metrics
+- Post-mortem template for all production incidents
+
+## Verification Checklist
+
+- [ ] Dockerfile follows best practices for security and size optimization
+- [ ] Cloud Build configuration includes testing, building, and deployment steps
+- [ ] Health check endpoints implemented for all services
+- [ ] Database migrations are idempotent and reversible
+- [ ] Rollback procedures are documented and tested
+- [ ] Secrets are managed securely using Secret Manager
+
+## Related Rules
+
+- @project-overview for technology stack details
+- @security-standards for infrastructure security practices
+- @backend-standards for service implementation guidelines
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced with detailed deployment process, examples, and best practices

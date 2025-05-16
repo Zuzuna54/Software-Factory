@@ -1,0 +1,307 @@
+---
+description: 
+globs: .py
+alwaysApply: false
+---
+# Database Standards
+
+## Objective
+
+Establish consistent, efficient, and secure patterns for database access, modeling, and migrations to ensure data integrity, performance, and maintainability.
+
+## Data Modeling
+
+### 1. SQLAlchemy Models
+
+- **Model Structure**
+  - Define clear table names and schema associations
+  - Use appropriate column types and constraints
+  - Include descriptive comments for complex fields or relationships
+  - Follow naming conventions consistently
+
+```python
+# app/models/user.py
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, text
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from app.db.base import Base
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    posts = relationship("Post", back_populates="author")
+    profile = relationship("UserProfile", uselist=False, back_populates="user")
+    
+    def __repr__(self):
+        return f"<User {self.username}>"
+```
+
+### 2. Vector Storage
+
+- **PgVector Integration**
+  - Store embeddings as `VECTOR(3072)` type
+  - Create appropriate indexes for vector similarity search
+  - Use proper normalization for vector values
+
+```python
+# app/models/document.py
+from sqlalchemy import Column, Integer, String, Text, DateTime, func
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy_utils import TSVectorType
+from app.db.base import Base
+
+class Document(Base):
+    __tablename__ = "documents"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    embedding = Column("embedding", postgresql.VECTOR(3072))
+    
+    # Full-text search vector
+    search_vector = Column(
+        TSVectorType("title", "content", weights={"title": "A", "content": "B"})
+    )
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    __table_args__ = (
+        # Create index for vector similarity search
+        Index("ix_documents_embedding_cosine", embedding, postgresql_using="ivfflat"),
+    )
+```
+
+## Data Access Patterns
+
+### 1. Repository Pattern
+
+- **Repository Structure**
+  - Create repositories for each model/domain
+  - Implement CRUD operations consistently
+  - Keep complex queries encapsulated in repositories
+  - Return data transfer objects (DTOs) instead of ORM models
+
+```python
+# app/repositories/user_repository.py
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update, delete
+from sqlalchemy.exc import NoResultFound
+from app.models.user import User
+from app.schemas.users import UserCreate, UserUpdate
+
+class UserRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+    
+    async def create(self, user_data: UserCreate) -> User:
+        """Create a new user."""
+        user = User(
+            username=user_data.username,
+            email=user_data.email,
+            password_hash=user_data.password_hash  # Assume hashed password
+        )
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+    
+    async def get_by_id(self, user_id: int) -> User:
+        """Get user by ID."""
+        query = select(User).where(User.id == user_id)
+        result = await self.db.execute(query)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise NoResultFound(f"User with ID {user_id} not found")
+        return user
+    
+    async def get_by_email(self, email: str) -> User:
+        """Get user by email."""
+        query = select(User).where(User.email == email)
+        result = await self.db.execute(query)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise NoResultFound(f"User with email {email} not found")
+        return user
+    
+    async def update(self, user_id: int, user_data: UserUpdate) -> User:
+        """Update user."""
+        query = update(User).where(User.id == user_id)
+        query = query.values(**user_data.model_dump(exclude_unset=True))
+        query = query.returning(User)
+        result = await self.db.execute(query)
+        await self.db.commit()
+        return result.scalar_one()
+    
+    async def delete(self, user_id: int) -> None:
+        """Delete user."""
+        query = delete(User).where(User.id == user_id)
+        await self.db.execute(query)
+        await self.db.commit()
+```
+
+### 2. Query Optimization
+
+- **Efficient Queries**
+  - Use SQLAlchemy Core for complex queries
+  - Select only required columns
+  - Implement pagination for large result sets
+  - Use appropriate joins (inner, left, etc.)
+
+```python
+# Example of optimized query
+async def get_user_posts_paginated(
+    self, user_id: int, skip: int = 0, limit: int = 100
+) -> tuple[list[Post], int]:
+    """Get paginated user posts with total count."""
+    # Count query
+    count_query = select(func.count(Post.id)).where(Post.author_id == user_id)
+    total = await self.db.scalar(count_query)
+    
+    # Data query with pagination
+    query = (
+        select(Post)
+        .where(Post.author_id == user_id)
+        .options(selectinload(Post.tags))  # Eager load tags
+        .order_by(Post.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    
+    result = await self.db.execute(query)
+    posts = result.scalars().all()
+    
+    return posts, total
+```
+
+## Database Migrations
+
+### 1. Alembic Integration
+
+- **Migration Management**
+  - Use Alembic for all schema migrations
+  - Create atomic, reversible migrations
+  - Include descriptive comments in migration scripts
+  - Test migrations in development before applying to production
+
+```python
+# alembic/versions/20240401_add_user_profile_table.py
+"""add user profile table
+
+Revision ID: a1b2c3d4e5f6
+Revises: previous_revision_id
+Create Date: 2024-04-01 10:00:00.000000
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+# revision identifiers
+revision = 'a1b2c3d4e5f6'
+down_revision = 'previous_revision_id'
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    """Create user_profiles table with foreign key to users."""
+    op.create_table(
+        'user_profiles',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('user_id', sa.Integer(), nullable=False),
+        sa.Column('full_name', sa.String(length=100), nullable=True),
+        sa.Column('bio', sa.Text(), nullable=True),
+        sa.Column('avatar_url', sa.String(length=255), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('ix_user_profiles_user_id', 'user_profiles', ['user_id'], unique=True)
+
+def downgrade():
+    """Drop user_profiles table."""
+    op.drop_index('ix_user_profiles_user_id', table_name='user_profiles')
+    op.drop_table('user_profiles')
+```
+
+### 2. Data Migrations
+
+- **Safe Data Changes**
+  - Handle data migrations separately from schema changes
+  - Implement batching for large data operations
+  - Include proper error handling and recovery
+
+## Indexing and Performance
+
+### 1. Index Strategy
+
+- **Appropriate Indexes**
+  - Create indexes for all foreign keys
+  - Add indexes for frequently queried columns
+  - Use composite indexes for multi-column filters
+  - Consider partial indexes for filtered queries
+
+```sql
+-- Example index creation
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_posts_created_at_author ON posts(created_at, author_id);
+CREATE INDEX idx_active_users ON users(is_active) WHERE is_active = true;
+```
+
+### 2. Query Analysis
+
+- **Performance Monitoring**
+  - Use EXPLAIN ANALYZE for query optimization
+  - Monitor query performance with metrics
+  - Optimize slow queries with proper indexes or restructuring
+  - Use database connection pooling for efficient resource use
+
+## Security Standards
+
+### 1. Data Protection
+
+- **Sensitive Data Handling**
+  - Never store plaintext passwords or sensitive information
+  - Use proper encryption for sensitive data
+  - Implement row-level security where appropriate
+  - Use parameterized queries for all SQL operations
+
+### 2. Access Control
+
+- **Permission Model**
+  - Implement role-based access control
+  - Apply principle of least privilege
+  - Use database roles and permissions for additional security
+  - Audit all data access operations
+
+## Verification Checklist
+
+- [ ] SQLAlchemy models have appropriate types and constraints
+- [ ] All foreign keys have corresponding indexes
+- [ ] Repository pattern used for data access abstraction
+- [ ] Migrations are atomic and reversible
+- [ ] Queries use appropriate joins and filtering
+- [ ] Security measures implemented for sensitive data
+- [ ] Connection pooling configured properly
+
+## Related Rules
+
+- @project-overview for overall technology stack
+- @backend/api-standards for API development patterns
+- @security-standards for application security guidelines
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Initial version with comprehensive database standards

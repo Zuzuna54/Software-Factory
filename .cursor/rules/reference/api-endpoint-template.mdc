@@ -1,0 +1,188 @@
+---
+description: Provide a standardized template for creating new FastAPI endpoints that follow project conventions for validation, error handling, documentation, and security.
+globs: 
+alwaysApply: false
+---
+# API Endpoint Template
+
+## Objective
+
+Provide a standardized template for creating new FastAPI endpoints that follow project conventions for validation, error handling, documentation, and security.
+
+## Usage
+
+Reference this template when creating new API endpoints to ensure consistent implementation of best practices.
+
+## Template
+
+```python
+from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.deps import get_current_user, get_db
+from app.core.security import User
+from app.schemas.responses import StandardResponse
+
+router = APIRouter()
+
+# Request model with validation
+class ItemCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100, description="Item name")
+    description: Optional[str] = Field(None, max_length=1000, description="Optional item description")
+    quantity: int = Field(..., gt=0, description="Item quantity (must be positive)")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "name": "Example Item",
+                "description": "This is an example item",
+                "quantity": 1
+            }
+        }
+
+# Response model
+class ItemResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    quantity: int
+    created_by: int
+    
+    class Config:
+        orm_mode = True
+
+@router.post(
+    "/items/",
+    response_model=ItemResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new item",
+    description="Creates a new item with the provided details",
+    responses={
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"}
+    }
+)
+async def create_item(
+    request: ItemCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create a new item with the following parameters:
+    - **name**: Item name (required)
+    - **description**: Optional item description
+    - **quantity**: Item quantity (must be positive)
+    
+    Returns the created item details.
+    """
+    try:
+        # Implementation logic
+        # 1. Create database model instance
+        # 2. Add to database
+        # 3. Commit transaction
+        # 4. Return response
+        
+        # Example implementation:
+        db_item = Item(
+            name=request.name,
+            description=request.description,
+            quantity=request.quantity,
+            created_by=current_user.id
+        )
+        db.add(db_item)
+        await db.commit()
+        await db.refresh(db_item)
+        
+        return db_item
+        
+    except Exception as e:
+        await db.rollback()
+        # Log the error with structured logging
+        logger.error(
+            "Failed to create item",
+            extra={
+                "error": str(e),
+                "user_id": current_user.id,
+                "item_name": request.name
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while creating the item"
+        )
+
+# GET endpoint example with pagination
+@router.get(
+    "/items/",
+    response_model=List[ItemResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List all items",
+    description="Retrieves a paginated list of all items"
+)
+async def list_items(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieve a list of items with pagination.
+    
+    Parameters:
+    - **skip**: Number of items to skip (default: 0)
+    - **limit**: Maximum number of items to return (default: 100, max: 100)
+    
+    Returns a list of items.
+    """
+    # Implementation logic with pagination
+    items = await db.exec(
+        select(Item)
+        .offset(skip)
+        .limit(min(limit, 100))
+    ).all()
+    
+    return items
+```
+
+## Key Considerations
+
+1. **Request Validation**
+   - Use Pydantic models with Field validators
+   - Provide examples in Config.schema_extra
+   - Use descriptive field descriptions
+
+2. **Response Models**
+   - Define explicit response models
+   - Use appropriate status codes
+   - Document all possible response scenarios
+
+3. **Documentation**
+   - Include summary and description for each endpoint
+   - Document parameters in docstring
+   - Provide example usage where helpful
+
+4. **Error Handling**
+   - Use try-except blocks for database operations
+   - Implement transaction rollbacks on failure
+   - Log errors with structured context
+   - Return appropriate HTTP status codes
+
+5. **Security**
+   - Use dependency injection for authentication
+   - Apply appropriate permission checks
+   - Follow principle of least privilege
+
+## Related Rules
+
+- @backend-standards for general backend development guidelines
+- @security-standards for detailed security requirements
+- @api-documentation for API documentation standards
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Initial version

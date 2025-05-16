@@ -1,0 +1,362 @@
+---
+description: Establish comprehensive security standards across infrastructure, authentication, data protection, and security monitoring to protect the application, its data, and its users from common threats and vulnerabilities.
+globs: 
+alwaysApply: false
+---
+# Security Standards
+
+## Objective
+
+Establish comprehensive security standards across infrastructure, authentication, data protection, and security monitoring to protect the application, its data, and its users from common threats and vulnerabilities.
+
+## Authentication & Authorization
+
+### 1. Authentication Mechanisms
+
+- **JWT Implementation**
+  - Use short-lived access tokens (15-30 minutes)
+  - Implement refresh token rotation for extended sessions
+  - Store tokens securely (HTTP-only, secure cookies in frontend)
+  - Include proper token validation and signature verification
+
+```python
+# app/core/security.py
+from datetime import datetime, timedelta
+from jose import jwt
+from passlib.context import CryptContext
+from app.core.config import settings
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Token creation
+def create_access_token(subject: str, expires_delta: timedelta = None) -> str:
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode = {"exp": expire, "sub": subject, "type": "access"}
+    encoded_jwt = jwt.encode(
+        to_encode, 
+        settings.SECRET_KEY, 
+        algorithm=settings.ALGORITHM
+    )
+    return encoded_jwt
+
+# Password verification
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+# Password hashing
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+```
+
+### 2. Authorization Framework
+
+- **Role-Based Access Control**
+  - Implement granular permission system
+  - Use decorators or middleware for endpoint protection
+  - Apply principle of least privilege
+  - Document required permissions for each endpoint
+
+```python
+# app/api/deps.py
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
+from pydantic import ValidationError
+from app.core.security import ALGORITHM
+from app.core.config import settings
+from app.models.user import User
+from app.schemas.token import TokenPayload
+from app.services.user import get_user_by_id
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+    """Validate token and return current user."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = jwt.decode(
+            token, 
+            settings.SECRET_KEY, 
+            algorithms=[ALGORITHM]
+        )
+        token_data = TokenPayload(**payload)
+    except (JWTError, ValidationError):
+        raise credentials_exception
+    
+    user = await get_user_by_id(token_data.sub)
+    if not user:
+        raise credentials_exception
+    
+    return user
+
+def check_permissions(required_permissions: list[str]):
+    """Decorator for checking user permissions."""
+    def permission_checker(current_user: User = Depends(get_current_user)):
+        user_permissions = current_user.permissions
+        
+        for permission in required_permissions:
+            if permission not in user_permissions:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Insufficient permissions: {permission} required",
+                )
+        
+        return current_user
+    
+    return permission_checker
+```
+
+## Application Security
+
+### 1. Input Validation
+
+- **Request Validation**
+  - Use Pydantic for strict schema validation
+  - Implement content type validation
+  - Validate file uploads (size, type, malware scanning)
+  - Apply rate limiting for all endpoints
+
+### 2. Output Encoding
+
+- **Response Security**
+  - Set appropriate security headers
+  - Implement proper content-type headers
+  - Sanitize HTML content to prevent XSS
+  - Use proper JSON serialization
+
+```python
+# app/api/middleware.py
+from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware import Middleware
+from starlette.responses import Response
+
+# Security headers middleware
+class SecurityHeadersMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = message.get("headers", [])
+                headers.extend([
+                    (b"X-Content-Type-Options", b"nosniff"),
+                    (b"X-Frame-Options", b"DENY"),
+                    (b"Content-Security-Policy", b"default-src 'self'; script-src 'self'; object-src 'none'"),
+                    (b"X-XSS-Protection", b"1; mode=block"),
+                    (b"Strict-Transport-Security", b"max-age=31536000; includeSubDomains"),
+                    (b"Referrer-Policy", b"strict-origin-when-cross-origin"),
+                    (b"Permissions-Policy", b"accelerometer=(), camera=(), geolocation=(), microphone=()"),
+                ])
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+def setup_middleware(app: FastAPI) -> None:
+    """Configure middleware for the application."""
+    # CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=["*"],
+    )
+    
+    # Security headers middleware
+    app.add_middleware(SecurityHeadersMiddleware)
+    
+    # Rate limiting middleware
+    # ...
+```
+
+### 3. Error Handling
+
+- **Secure Error Responses**
+  - Avoid exposing stack traces or sensitive data
+  - Implement consistent error responses
+  - Log errors with appropriate detail level
+  - Return user-friendly messages
+
+## Data Security
+
+### 1. Sensitive Data Protection
+
+- **Encryption Standards**
+  - Use AES-256 for sensitive data at rest
+  - Implement TLS 1.3 for data in transit
+  - Use secure key management (e.g., KMS, Vault)
+  - Apply field-level encryption for PII
+
+```python
+# app/utils/encryption.py
+from cryptography.fernet import Fernet
+from app.core.config import settings
+
+def encrypt_data(data: str) -> str:
+    """Encrypt sensitive data."""
+    cipher = Fernet(settings.ENCRYPTION_KEY)
+    encrypted_data = cipher.encrypt(data.encode())
+    return encrypted_data.decode()
+
+def decrypt_data(encrypted_data: str) -> str:
+    """Decrypt sensitive data."""
+    cipher = Fernet(settings.ENCRYPTION_KEY)
+    decrypted_data = cipher.decrypt(encrypted_data.encode())
+    return decrypted_data.decode()
+```
+
+### 2. Database Security
+
+- **Database Protection**
+  - Use parameterized queries for all database operations
+  - Implement connection encryption
+  - Apply row-level security where appropriate
+  - Use least privilege database accounts
+
+## Infrastructure Security
+
+### 1. Network Security
+
+- **Secure Network Configuration**
+  - Implement network segmentation
+  - Use VPC for cloud resources
+  - Apply defense-in-depth principles
+  - Configure Web Application Firewall (WAF)
+
+### 2. Cloud Security
+
+- **Cloud Security Controls**
+  - Follow principle of least privilege for IAM roles
+  - Enable audit logging for all resources
+  - Use secure service configurations
+  - Implement automated compliance scanning
+
+## Secure Development Lifecycle
+
+### 1. Code Security
+
+- **Secure Coding Practices**
+  - Run static code analysis in CI pipeline
+  - Perform security-focused code reviews
+  - Implement dependency vulnerability scanning
+  - Follow language-specific security best practices
+
+### 2. Security Testing
+
+- **Testing Requirements**
+  - Include security unit tests
+  - Perform regular penetration testing
+  - Run DAST (Dynamic Application Security Testing)
+  - Conduct security architecture reviews
+
+## Monitoring & Response
+
+### 1. Security Monitoring
+
+- **Monitoring Strategies**
+  - Implement comprehensive security logging
+  - Configure alerts for suspicious activities
+  - Use anomaly detection for potential threats
+  - Monitor for unauthorized access attempts
+
+```python
+# app/middleware/audit_logging.py
+import logging
+import json
+import time
+from typing import Callable
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
+# Configure security logger
+security_logger = logging.getLogger("security")
+
+class AuditLogMiddleware(BaseHTTPMiddleware):
+    """Middleware to log all API requests for security auditing."""
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Get request details
+        request_id = request.headers.get("X-Request-ID", "")
+        user_id = "anonymous"
+        
+        # Try to get authenticated user
+        if hasattr(request.state, "user") and request.state.user:
+            user_id = request.state.user.id
+        
+        # Log the request
+        start_time = time.time()
+        
+        # Process the request
+        response = await call_next(request)
+        
+        # Calculate processing time
+        process_time = time.time() - start_time
+        
+        # Create audit log entry
+        log_entry = {
+            "timestamp": time.time(),
+            "request_id": request_id,
+            "user_id": user_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "processing_time": process_time,
+            "ip_address": request.client.host,
+            "user_agent": request.headers.get("User-Agent", ""),
+        }
+        
+        # Log using JSON format
+        security_logger.info(json.dumps(log_entry))
+        
+        return response
+```
+
+### 2. Incident Response
+
+- **Response Plan**
+  - Document incident response procedures
+  - Establish security incident escalation paths
+  - Define roles and responsibilities
+  - Conduct regular incident response drills
+
+## Verification Checklist
+
+- [ ] Authentication uses secure JWT implementation with refresh tokens
+- [ ] Authorization implements proper role-based access control
+- [ ] Input validation applied to all user inputs
+- [ ] Security headers set in all responses
+- [ ] Sensitive data encrypted at rest and in transit
+- [ ] Database queries use parameterized statements
+- [ ] Network security controls implemented
+- [ ] Security logging and monitoring in place
+- [ ] Regular security testing performed
+- [ ] Incident response plan documented and tested
+
+## Related Rules
+
+- @project-overview for overall architecture
+- @backend/api-standards for API implementation
+- @backend/database-standards for database security
+- @infra-guidelines for infrastructure security
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Initial version with comprehensive security standards

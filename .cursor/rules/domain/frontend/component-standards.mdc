@@ -1,0 +1,257 @@
+---
+description: 
+globs: .ts,.tsx
+alwaysApply: false
+---
+# Frontend Component Standards
+
+## Objective
+
+Establish consistent, performant, and accessible patterns for React components in the Next.js application, ensuring maintainable and high-quality frontend code.
+
+## Component Architecture
+
+### 1. Server vs Client Components
+
+- **Default to Server Components**
+  - Use server components by default for improved performance
+  - Only switch to client components when you need:
+    - Interactive elements (event handlers)
+    - Component lifecycle hooks
+    - Browser-only APIs
+    - Client-side state management
+
+- **Client Component Declaration**
+  - Client components must start with `"use client"` directive at the top of the file
+  - Keep client component trees as small as possible
+  - Extract non-interactive parts to server components when possible
+
+```tsx
+// Good: Proper separation
+// UserProfile.tsx (server component)
+import UserAvatar from './UserAvatar';
+import UserInteractions from './UserInteractions';
+
+export default function UserProfile({ userId }) {
+  const userData = await fetchUserData(userId);
+  
+  return (
+    <div className="p-4 rounded-lg bg-white shadow">
+      <UserAvatar src={userData.avatarUrl} />
+      <h2 className="text-xl font-bold">{userData.name}</h2>
+      <UserInteractions userId={userId} /> {/* Client component for interactions */}
+    </div>
+  );
+}
+
+// UserInteractions.tsx (client component)
+"use client";
+
+import { useState } from 'react';
+
+export default function UserInteractions({ userId }) {
+  const [isFollowing, setIsFollowing] = useState(false);
+  
+  return (
+    <button 
+      onClick={() => setIsFollowing(!isFollowing)}
+      className="btn btn-primary mt-2"
+    >
+      {isFollowing ? 'Unfollow' : 'Follow'}
+    </button>
+  );
+}
+```
+
+### 2. Component Structure
+
+- **File Organization**
+  - One component per file
+  - Co-locate related components in a directory
+  - Include index.ts file for directory exports
+
+- **Component Composition**
+  - Prefer composition over inheritance
+  - Use children prop for flexible component content
+  - Create specialized components rather than adding complex conditionals
+
+## Styling Standards
+
+### 1. Tailwind CSS
+
+- Use Tailwind utility classes for all styling
+- `@apply` directive allowed only in `*.module.css` files
+- Follow consistent color palette and spacing from the design system
+- Use responsive modifiers consistently (`sm:`, `md:`, `lg:`)
+
+```tsx
+// Good: Consistent Tailwind usage
+function Card({ title, children }) {
+  return (
+    <div className="p-4 rounded-lg bg-white shadow-md hover:shadow-lg transition-shadow">
+      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <div className="text-gray-700">{children}</div>
+    </div>
+  );
+}
+
+// Bad: Mixing approaches
+function Card({ title, children }) {
+  return (
+    <div style={{ padding: '1rem', borderRadius: '0.5rem' }} className="bg-white">
+      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <div className="text-gray-700">{children}</div>
+    </div>
+  );
+}
+```
+
+### 2. Component Libraries
+
+- Use **shadcn/ui** for UI primitives and common components
+- Customize shadcn components using the project's design tokens
+- Use **Framer Motion** for animations
+- Keep animations subtle and performance-optimized
+
+## Data Fetching & State Management
+
+### 1. Data Fetching
+
+- Fetch data through server actions when possible
+- Wrap server actions with `getServerSession` for authentication
+- Use React Query for client-side data fetching and caching
+
+```tsx
+// Good: Server action with authentication
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+export async function getUserProjects() {
+  const session = await getServerSession(authOptions);
+  
+  if (!session) {
+    throw new Error("Authentication required");
+  }
+  
+  return await db.project.findMany({
+    where: { userId: session.user.id }
+  });
+}
+```
+
+### 2. State Management
+
+- Use `useState` for simple component state
+- Use `useReducer` for complex state logic
+- Never mix `useState` and `useServerContext` in the same component
+- For global state, use React Context or a state management library
+
+## Accessibility Standards
+
+1. **Semantic HTML**
+   - Use proper HTML elements (`button` for actions, `a` for links)
+   - Implement proper heading hierarchy (h1-h6)
+   - Use HTML landmarks (`main`, `nav`, `section`, etc.)
+
+2. **ARIA Attributes**
+   - Add aria labels to elements without visible text
+   - Use proper roles when HTML semantics aren't sufficient
+   - Implement proper focus management
+
+3. **Keyboard Navigation**
+   - Ensure all interactive elements are keyboard accessible
+   - Implement logical tab order
+   - Provide visual focus indicators
+
+## Performance Optimization
+
+1. **Code Splitting**
+   - Lazy load heavy components
+   - Use dynamic imports for routes and large components
+   - Implement proper loading states
+
+2. **Render Optimization**
+   - Memoize expensive components with React.memo
+   - Use useMemo and useCallback appropriately
+   - Avoid unnecessary re-renders
+
+## Component Template
+
+```tsx
+// Standard component template
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
+
+interface ButtonProps {
+  /** Text to display inside the button */
+  children: React.ReactNode;
+  /** Visual variant of the button */
+  variant?: 'primary' | 'secondary' | 'outline';
+  /** Whether the button is in a disabled state */
+  disabled?: boolean;
+  /** Click handler function */
+  onClick?: () => void;
+  /** Additional CSS classes */
+  className?: string;
+}
+
+/**
+ * Button component - For user interactions requiring an action
+ */
+export function Button({
+  children,
+  variant = 'primary',
+  disabled = false,
+  onClick,
+  className,
+}: ButtonProps) {
+  // Implementation logic here
+  
+  const baseStyles = "px-4 py-2 rounded font-medium focus:outline-none focus:ring-2";
+  
+  const variantStyles = {
+    primary: "bg-blue-600 text-white hover:bg-blue-700",
+    secondary: "bg-gray-200 text-gray-800 hover:bg-gray-300",
+    outline: "border border-gray-300 hover:bg-gray-50"
+  };
+  
+  return (
+    <button
+      className={cn(
+        baseStyles,
+        variantStyles[variant],
+        disabled && "opacity-50 cursor-not-allowed",
+        className
+      )}
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
+      {children}
+    </button>
+  );
+}
+
+export default Button;
+```
+
+## Verification Checklist
+
+- [ ] Components are properly separated between server and client
+- [ ] Styling uses Tailwind CSS consistently
+- [ ] UI components use shadcn/ui when appropriate
+- [ ] Data fetching properly implements authentication
+- [ ] Components meet accessibility standards
+- [ ] Performance optimizations are applied where needed
+
+## Related Rules
+
+- @project-overview for overall technology stack
+- @frontend/state-management for global state patterns
+- @frontend/api-integration for backend integration
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced with detailed component architecture, examples, and accessibility standards

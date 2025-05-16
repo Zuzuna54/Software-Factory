@@ -1,0 +1,151 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Naming Conventions & Documentation
+
+## Objective
+
+Maintain consistent naming styles, documentation formats, and commit practices across the codebase to improve readability, maintainability, and collaboration.
+
+## Naming Standards
+
+### 1. Language-Specific Conventions
+
+#### Python
+- **Classes**: `PascalCase` (e.g., `UserAuthentication`, `PaymentProcessor`)
+- **Functions/Variables/Methods**: `snake_case` (e.g., `calculate_total`, `user_id`)
+- **Constants**: `UPPER_SNAKE_CASE` (e.g., `MAX_RETRY_COUNT`, `API_BASE_URL`)
+- **Private Members**: Prefix with underscore (e.g., `_private_method`, `_internal_state`)
+- **Module Names**: Short, lowercase (e.g., `auth`, `models`, `utils`)
+
+#### TypeScript/JavaScript
+- **Classes/Interfaces/Types**: `PascalCase` (e.g., `UserProfile`, `ApiResponse`)
+- **Functions/Variables/Methods**: `camelCase` (e.g., `getUserData`, `isValidEmail`)
+- **Constants**: `UPPER_SNAKE_CASE` (e.g., `DEFAULT_TIMEOUT`, `ENVIRONMENT`)
+- **Private Members**: Use TypeScript's `private` keyword or `#` syntax in modern JS
+
+#### React Specific
+- **Components**: `PascalCase` (e.g., `UserAvatar`, `LoginForm`)
+- **Props**: `camelCase` (e.g., `onClick`, `userData`)
+- **Custom Hooks**: Prefix with `use` (e.g., `useAuth`, `useFormValidation`)
+- **Event Handlers**: Prefix with `handle` or `on` (e.g., `handleSubmit`, `onUserChange`)
+
+### 2. General Principles
+
+- **Be Descriptive**: Names should clearly indicate purpose (e.g., `fetchUserData` not `getData`)
+- **Avoid Abbreviations**: Use full words unless abbreviations are universally recognized
+- **Consistency**: Follow existing patterns in the codebase
+- **Length**: Balance descriptiveness with conciseness (aim for 2-3 words max)
+
+## Documentation Standards
+
+### 1. Code Documentation
+
+- **Public Symbols**: All public classes, functions, and interfaces must include documentation
+- **Python**: Use Google-style docstrings
+- **TypeScript/JavaScript**: Use JSDoc format
+
+#### Python Example
+```python
+def calculate_discount(price: float, discount_rate: float) -> float:
+    """Calculate the final price after applying a discount.
+    
+    Args:
+        price: The original price of the item.
+        discount_rate: The discount rate as a decimal (e.g., 0.2 for 20%).
+        
+    Returns:
+        The price after applying the discount.
+        
+    Raises:
+        ValueError: If discount_rate is negative or greater than 1.
+    """
+    if not 0 <= discount_rate <= 1:
+        raise ValueError("Discount rate must be between 0 and 1")
+    return price * (1 - discount_rate)
+```
+
+#### TypeScript Example
+```typescript
+/**
+ * Calculate the final price after applying a discount.
+ * 
+ * @param price - The original price of the item
+ * @param discountRate - The discount rate as a decimal (e.g., 0.2 for 20%)
+ * @returns The price after applying the discount
+ * @throws {Error} If discountRate is negative or greater than 1
+ */
+function calculateDiscount(price: number, discountRate: number): number {
+    if (discountRate < 0 || discountRate > 1) {
+        throw new Error("Discount rate must be between 0 and 1");
+    }
+    return price * (1 - discountRate);
+}
+```
+
+### 2. File Header Comments
+
+Each source file should include a header comment with:
+- Brief description of the file's purpose
+- Author information (optional)
+- Copyright notice if applicable
+
+## Commit Message Standards
+
+Follow the Conventional Commits specification:
+
+```
+<type>(scope): summary
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Types
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Formatting changes
+- `refactor`: Code change that neither fixes a bug nor adds a feature
+- `perf`: Performance improvement
+- `test`: Adding or correcting tests
+- `chore`: Changes to the build process or auxiliary tools
+
+### Commit Message Guidelines
+- Summary should be 50 characters or less
+- Use imperative mood ("Add feature" not "Added feature")
+- Body should explain the "why", not the "what" or "how"
+- Reference issue numbers in the footer
+
+### Example
+```
+feat(auth): implement JWT refresh token mechanism
+
+Adds automatic token refresh to prevent session timeout during active use.
+The implementation uses a sliding window approach for better UX.
+
+Closes #123
+```
+
+## Verification Checklist
+
+- [ ] Names follow appropriate case conventions for their context
+- [ ] Public symbols have complete documentation
+- [ ] Commit messages follow Conventional Commits format
+- [ ] Files have appropriate header comments
+- [ ] Naming is consistent with existing patterns in the codebase
+
+## Related Rules
+
+- @project-overview for overall project standards
+- @docs-guidelines for detailed documentation requirements
+- @exact-scope for implementation boundaries
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced with detailed naming conventions, examples, and documentation standards

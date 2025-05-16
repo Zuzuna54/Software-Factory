@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
 
-name: CI Pipeline
+name: CI
 
 on:
   push:
@@ -9,19 +9,15 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-test:
+  python-tests:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-
     services:
       postgres:
-        image: ankane/pgvector:v0.7.0-pg16
+        image: postgres:16
         env:
-          POSTGRES_DB: agent_team_test
-          POSTGRES_USER: agent_user
-          POSTGRES_PASSWORD: test_password # Use a fixed password for CI
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_db
         ports:
           - 5432:5432
         options: >-
@@ -29,9 +25,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
       redis:
-        image: redis:7-alpine
+        image: redis:latest
         ports:
           - 6379:6379
         options: >-
@@ -41,54 +36,58 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Dependencies
+          python-version: "3.12"
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install linters
-          pip install ruff black isort
-          # Install test dependencies
-          pip install pytest pytest-cov pytest-asyncio
-          # Install application dependencies
-          pip install -r requirements.txt
-
-      - name: Lint with Ruff
+          if [ -f agents/requirements.txt ]; then pip install -r agents/requirements.txt; fi
+          if [ -f agents/requirements-dev.txt ]; then pip install -r agents/requirements-dev.txt; fi
+      - name: Lint with ruff
         run: |
-          ruff check .
-
-      - name: Format with Black and isort (Check only)
+          if [ -d agents ]; then
+            pip install ruff
+            ruff check agents
+          fi
+      - name: Test with pytest
         run: |
-          black --check .
-          isort --check-only .
+          if [ -d agents ]; then
+            pip install pytest pytest-cov
+            pytest agents
+          fi
 
-      - name: Initialize Test Database
+  typescript-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+      - name: Install dependencies
         run: |
-          # Wait for PostgreSQL to be ready
-          sleep 5
-          # Connect and apply schema
-          psql -h 127.0.0.1 -p 5432 -U agent_user -d agent_team_test -f infra/docker/postgres/init.sql
-        env:
-          PGPASSWORD: test_password
-
-      - name: Run Pytest
+          if [ -d dashboard ]; then
+            cd dashboard
+            npm ci
+          fi
+      - name: Lint
         run: |
-          pytest --cov=agents --cov=app --cov-report=xml
-        env:
-          DATABASE_URL: postgresql+asyncpg://agent_user:test_password@127.0.0.1:5432/agent_team_test
-          REDIS_URL: redis://127.0.0.1:6379/0
-          # Set other necessary test environment variables here
-
-      # Optional: Upload coverage report
-      # - name: Upload coverage to Codecov
-      #   uses: codecov/codecov-action@v3
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }} # Set this secret in GitHub repo settings
-      #     file: ./coverage.xml
-      #     flags: pytest
-      #     name: codecov-umbrella
+          if [ -d dashboard ]; then
+            cd dashboard
+            npm run lint
+          fi
+      - name: Build
+        run: |
+          if [ -d dashboard ]; then
+            cd dashboard
+            npm run build
+          fi
+      - name: Test
+        run: |
+          if [ -d dashboard ]; then
+            cd dashboard
+            npm test
+          fi

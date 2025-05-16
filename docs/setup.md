@@ -1,98 +1,135 @@
 # Setup Instructions
 
-This document describes how to set up the Autonomous AI Development Team project for local development using Docker Compose.
+This document provides instructions for setting up the Autonomous AI Development Team project for local development and deployment.
 
 ## Prerequisites
 
-- **Docker and Docker Compose:** Ensure you have the latest versions installed. [Install Docker](https://docs.docker.com/get-docker/)
-- **Git:** Required for cloning the repository. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-- **Cloud SDK (Optional but Recommended):** `gcloud` CLI if you plan to interact with GCP resources directly or use application default credentials. [Install gcloud](https://cloud.google.com/sdk/docs/install)
-- **.env File:** Create a `.env` file in the project root for secrets and configuration. See `.env.example` (to be created) for required variables.
+- Python 3.12+
+- Node.js 20+
+- Docker and Docker Compose
+- Google Cloud SDK (for deployment)
+- PostgreSQL 16 (local or via Docker)
+- Redis (local or via Docker)
 
-## Local Development Setup Steps
+## Local Development Setup
 
-1.  **Clone the Repository:**
+### 1. Clone the Repository
 
-    ```bash
-    git clone <repository-url>
-    cd software-factory # Or your repository name
-    ```
+```bash
+git clone <repository-url>
+cd <repository-directory>
+```
 
-2.  **Create `.env` File:**
-    Copy `.env.example` (once created) to `.env` and fill in the required values, especially `POSTGRES_PASSWORD` and any necessary API keys (e.g., `GOOGLE_APPLICATION_CREDENTIALS` path if using a service account, or configure ADC).
+### 2. Backend Setup
 
-    ```bash
-    cp .env.example .env
-    # Edit .env with your details
-    ```
+```bash
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows, use .venv\Scripts\activate
 
-    _Note: Ensure `.env` is listed in your `.gitignore` file._
+# Install dependencies
+cd agents
+pip install -r requirements.txt
+pip install -r requirements-dev.txt  # For development tools
 
-3.  **Build and Start Docker Containers:**
-    This command will build the images defined in the Dockerfiles and start the services (PostgreSQL, Redis, backend, frontend).
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your local configuration
+```
 
-    ```bash
-    docker-compose up --build -d
-    ```
+### 3. Frontend Setup
 
-    - `--build`: Forces Docker to rebuild the images if Dockerfiles have changed.
-    - `-d`: Runs containers in detached mode (in the background).
+```bash
+# Install dependencies
+cd dashboard
+npm install
 
-4.  **Check Container Status:**
-    Verify that all containers are running and healthy.
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your configuration
+```
 
-    ```bash
-    docker-compose ps
-    ```
+### 4. Database Setup
 
-    You should see `postgres`, `redis`, `backend`, and `frontend` services running.
+Using Docker Compose:
 
-5.  **Apply Database Migrations (using Alembic - requires setup in later iteration):**
-    Once Alembic is configured (see `alembic.ini`), you'll run migrations inside the `backend` container:
+```bash
+# Start PostgreSQL and Redis
+docker-compose up -d postgres redis
 
-    ```bash
-    docker-compose exec backend alembic upgrade head
-    ```
+# Apply database migrations (once backend is set up)
+cd agents
+python -m alembic upgrade head
+```
 
-    _(Initially, the `init.sql` script handles schema creation, but Alembic will manage changes later.)_
+### 5. Running Services
 
-6.  **Accessing Services:**
+```bash
+# Run backend API (from agents directory)
+python -m uvicorn app.main:app --reload
 
-    - **Backend API:** `http://localhost:8000` (or the port mapped in `docker-compose.yml`)
-    - **Frontend App:** `http://localhost:3000` (or the port mapped in `docker-compose.yml`)
-    - **Database (e.g., using `psql`):**
-      ```bash
-      docker-compose exec postgres psql -U agent_user -d agent_team
-      ```
-      (Password: `agent_password` or the value in your `.env` if changed)
+# Run frontend (from dashboard directory)
+npm run dev
 
-7.  **Running Tests:**
-    Execute the test suite inside the `backend` container:
+# Run Celery workers (from agents directory)
+celery -A agents.tasks.celery_app worker --loglevel=info
+```
 
-    ```bash
-    docker-compose exec backend pytest
-    ```
+## Docker Compose Setup
 
-8.  **Accessing Shells:**
+For a complete local environment using Docker Compose:
 
-    - Backend (Python) container:
-      ```bash
-      docker-compose exec backend bash
-      ```
-    - Frontend (Node) container:
-      ```bash
-      docker-compose exec frontend sh # Alpine uses sh
-      ```
+```bash
+# Build and start all services
+docker-compose up -d
 
-9.  **Stopping the Environment:**
-    ```bash
-    docker-compose down
-    ```
-    To remove volumes (database data, redis data) as well:
-    ```bash
-    docker-compose down -v
-    ```
+# Apply database migrations
+docker-compose exec api python -m alembic upgrade head
+```
 
-## Cloud Deployment
+## Google Cloud Deployment
 
-See `docs/deployment/gcp_setup.md` (to be created) for instructions on deploying to Google Cloud Platform using Terraform.
+### 1. GCP Project Setup
+
+```bash
+# Set up GCP project
+gcloud init
+gcloud projects create <project-id>
+gcloud config set project <project-id>
+
+# Enable required APIs
+gcloud services enable cloudrun.googleapis.com \
+  cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com \
+  sqladmin.googleapis.com \
+  redis.googleapis.com
+```
+
+### 2. Infrastructure Deployment
+
+```bash
+# Create infrastructure using Terraform
+cd infra/terraform
+terraform init
+terraform plan -var="project_id=<project-id>"
+terraform apply -var="project_id=<project-id>"
+```
+
+### 3. Application Deployment
+
+```bash
+# Deploy backend to Cloud Run
+gcloud builds submit --config cloudbuild.yaml
+
+# Deploy database migrations
+gcloud builds submit --config cloudbuild-migrations.yaml
+```
+
+## Additional Configuration
+
+For additional configuration options, see:
+
+- [Agent Configuration](./configuration/agents.md)
+- [Database Schema](./database/schema.md)
+- [Deployment Options](./deployment/options.md)
+- [LLM Provider Setup](./configuration/llm-providers.md)
