@@ -1,135 +1,154 @@
 # Setup Instructions
 
-This document provides instructions for setting up the Autonomous AI Development Team project for local development and deployment.
+This document provides instructions for setting up the Software Factory project for local development and deployment.
 
 ## Prerequisites
 
 - Python 3.12+
-- Node.js 20+
-- Docker and Docker Compose
-- Google Cloud SDK (for deployment)
-- PostgreSQL 16 (local or via Docker)
-- Redis (local or via Docker)
+- Node.js 20+ (for the dashboard)
+- PostgreSQL 16+ with pgvector 0.8.0+
+- Redis
+- Docker and Docker Compose (optional)
 
-## Local Development Setup
+## Local Development Options
+
+You have two options for setting up your development environment:
+
+1. **Docker-based setup**: Ideal for quick start and consistent environments
+2. **Direct local setup**: Better for deeper debugging and customization
+
+## Option 1: Docker-based Setup
 
 ### 1. Clone the Repository
 
 ```bash
 git clone <repository-url>
-cd <repository-directory>
+cd software-factory
 ```
 
-### 2. Backend Setup
+### 2. Set Up Environment Variables
 
 ```bash
-# Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows, use .venv\Scripts\activate
-
-# Install dependencies
-cd agents
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # For development tools
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your local configuration
+cp .env.example .env.docker
 ```
 
-### 3. Frontend Setup
+Edit `.env.docker` as needed (defaults should work for most users).
+
+### 3. Start Services with Docker Compose
 
 ```bash
-# Install dependencies
+docker-compose up -d
+```
+
+All services will be available:
+
+- API: http://localhost:8000
+- Dashboard: http://localhost:3000
+- pgAdmin: http://localhost:5050
+
+## Option 2: Direct Local Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd software-factory
+```
+
+### 2. Set Up Environment Variables
+
+```bash
+cp .env.example .env.local
+```
+
+Edit `.env.local` with your local database credentials. At minimum:
+
+```
+DATABASE_URL=postgresql://postgres:postgres@localhost/software_factory
+```
+
+### 3. Install Dependencies with Pipenv
+
+```bash
+pip install pipenv
+pipenv install --dev
+```
+
+### 4. Set Up Database
+
+Ensure PostgreSQL is running and create the database:
+
+```bash
+psql -U postgres -c "CREATE DATABASE software_factory;"
+psql -U postgres -d software_factory -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+psql -U postgres -d software_factory -c "CREATE EXTENSION IF NOT EXISTS \"pgvector\";"
+```
+
+Verify pgvector version (need 0.8.0+ for halfvec support):
+
+```bash
+psql -U postgres -d software_factory -c "SELECT extversion FROM pg_extension WHERE extname = 'vector';"
+```
+
+### 5. Run Migrations
+
+```bash
+PYTHONPATH=$PWD pipenv run alembic upgrade head
+```
+
+### 6. Start the Backend Server
+
+```bash
+PYTHONPATH=$PWD pipenv run python -m uvicorn agents.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 7. Set Up and Run the Dashboard (optional)
+
+```bash
 cd dashboard
 npm install
-
-# Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your configuration
-```
-
-### 4. Database Setup
-
-Using Docker Compose:
-
-```bash
-# Start PostgreSQL and Redis
-docker-compose up -d postgres redis
-
-# Apply database migrations (once backend is set up)
-cd agents
-python -m alembic upgrade head
-```
-
-### 5. Running Services
-
-```bash
-# Run backend API (from agents directory)
-python -m uvicorn app.main:app --reload
-
-# Run frontend (from dashboard directory)
 npm run dev
-
-# Run Celery workers (from agents directory)
-celery -A agents.tasks.celery_app worker --loglevel=info
 ```
 
-## Docker Compose Setup
+## Automated Setup Script
 
-For a complete local environment using Docker Compose:
+For convenience, we provide a setup script:
 
 ```bash
-# Build and start all services
-docker-compose up -d
-
-# Apply database migrations
-docker-compose exec api python -m alembic upgrade head
+chmod +x scripts/setup-local-dev.sh
+./scripts/setup-local-dev.sh
 ```
 
-## Google Cloud Deployment
-
-### 1. GCP Project Setup
+And a script to ensure services are running:
 
 ```bash
-# Set up GCP project
-gcloud init
-gcloud projects create <project-id>
-gcloud config set project <project-id>
-
-# Enable required APIs
-gcloud services enable cloudrun.googleapis.com \
-  cloudbuild.googleapis.com \
-  artifactregistry.googleapis.com \
-  sqladmin.googleapis.com \
-  redis.googleapis.com
+chmod +x scripts/start-services.sh
+./scripts/start-services.sh
 ```
 
-### 2. Infrastructure Deployment
+## Database Schema
+
+The database schema includes:
+
+- **Agent Tables**: `agents`, `agent_messages`, `agent_activities`
+- **Planning Tables**: `tasks`, `meetings`, `meeting_conversations`
+- **Artifact Tables**: `artifacts`, `requirements_artifacts`, `design_artifacts`, `implementation_artifacts`, `testing_artifacts`, `project_vision`, `project_roadmap`
+
+## Vector Support
+
+The system uses pgvector with halfvec type for efficient vector operations:
+
+- Supports 3072-dimensional vectors for embedding storage
+- Uses HNSW indexes for similarity searches
+- Key vector columns:
+  - `agent_messages.context_vector`: halfvec(3072)
+  - `artifacts.content_vector`: halfvec(3072)
+
+## Switching Environments
+
+To switch between Docker and local environments:
 
 ```bash
-# Create infrastructure using Terraform
-cd infra/terraform
-terraform init
-terraform plan -var="project_id=<project-id>"
-terraform apply -var="project_id=<project-id>"
+./scripts/switch-env.sh docker  # Switch to Docker configuration
+./scripts/switch-env.sh local   # Switch to local configuration
 ```
-
-### 3. Application Deployment
-
-```bash
-# Deploy backend to Cloud Run
-gcloud builds submit --config cloudbuild.yaml
-
-# Deploy database migrations
-gcloud builds submit --config cloudbuild-migrations.yaml
-```
-
-## Additional Configuration
-
-For additional configuration options, see:
-
-- [Agent Configuration](./configuration/agents.md)
-- [Database Schema](./database/schema.md)
-- [Deployment Options](./deployment/options.md)
-- [LLM Provider Setup](./configuration/llm-providers.md)

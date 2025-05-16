@@ -1,12 +1,12 @@
 # Local Development Environment
 
-This document provides instructions for setting up and using the local development environment for the Autonomous AI Development Team project.
+This document provides instructions for setting up and using the local development environment for the Software Factory project using Docker Compose.
 
 ## Overview
 
 The development environment uses Docker Compose to set up the following services:
 
-- **PostgreSQL**: Database for storing agent data and artifacts
+- **PostgreSQL**: Database for storing agent data and artifacts with pgvector extension for vector operations
 - **Redis**: Message broker for Celery task queue
 - **pgAdmin**: Web-based PostgreSQL management tool
 - **API**: FastAPI-based backend service
@@ -24,7 +24,7 @@ The development environment uses Docker Compose to set up the following services
 
 ```bash
 git clone <repository-url>
-cd <repository-directory>
+cd software-factory
 ```
 
 ### 2. Environment Variables
@@ -32,10 +32,10 @@ cd <repository-directory>
 Copy the example environment file:
 
 ```bash
-cp env.example .env
+cp .env.example .env.docker
 ```
 
-Edit `.env` file to configure your environment variables (default values should work for local development).
+Edit `.env.docker` file to configure your environment variables (default values should work for local development).
 
 ### 3. Start the Development Environment
 
@@ -66,6 +66,7 @@ docker-compose logs -f api
     - Port: `5432`
     - Username: `postgres`
     - Password: `postgres`
+    - Database: `software_factory`
 
 ### 5. Database Migrations
 
@@ -108,8 +109,16 @@ docker-compose down -v
 
 ### Background Tasks
 
-- Create new Celery tasks in `agents/tasks.py` or in dedicated modules.
+- Celery tasks are defined in `agents/tasks.py`.
 - Tasks can be scheduled or triggered via the API.
+
+## Vector Search Capabilities
+
+Our system uses pgvector for storing and querying embeddings:
+
+- Vector columns use the `halfvec(3072)` type optimized for high-dimensional vectors
+- HNSW indexes are created for efficient similarity search
+- Configured with parameters `m=16` and `ef_construction=64` for optimal performance
 
 ## Common Issues
 
@@ -120,6 +129,17 @@ docker-compose down -v
   ```
 
 - **Port conflicts**: If you have services already running on the specified ports, edit the `docker-compose.yml` file to use different port mappings.
+
+- **pgvector compatibility**: Make sure you're using PostgreSQL 16 with pgvector extension 0.8.0+ which supports `halfvec` type for high-dimensional vectors.
+
+## Switching Between Docker and Local
+
+To switch between Docker and local development environments:
+
+```bash
+./scripts/switch-env.sh docker  # Switch to Docker environment
+./scripts/switch-env.sh local   # Switch to local environment
+```
 
 ## Next Steps
 

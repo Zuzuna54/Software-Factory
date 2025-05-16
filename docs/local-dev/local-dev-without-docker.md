@@ -19,6 +19,8 @@ Before you begin, make sure you have the following installed:
 3. **PostgreSQL 16+**
 
    - [Download PostgreSQL](https://www.postgresql.org/download/)
+   - Make sure to install pgvector 0.8.0+ for vector support
+   - `CREATE EXTENSION vector;` in your PostgreSQL instance
 
 4. **Redis**
    - [Download Redis](https://redis.io/download)
@@ -42,7 +44,11 @@ Copy the example environment file and update it with your local settings:
 cp .env.example .env.local
 ```
 
-Edit the `.env.local` file to match your local PostgreSQL and Redis configurations.
+Edit the `.env.local` file to match your local PostgreSQL and Redis configurations. At minimum, you need:
+
+```
+DATABASE_URL=postgresql://postgres:postgres@localhost/software_factory
+```
 
 ### 3. Run the Setup Script
 
@@ -57,7 +63,9 @@ This script will:
 
 - Verify required dependencies
 - Install Python dependencies with pipenv
-- Create the PostgreSQL database and enable extensions
+- Create the PostgreSQL database and enable required extensions:
+  - uuid-ossp
+  - pgvector (requires version 0.8.0+ for halfvec support)
 - Test Redis connection
 - Set up local storage directories if needed
 - Run database migrations
@@ -107,30 +115,43 @@ pipenv run quality
 To create a new migration:
 
 ```bash
-pipenv run alembic revision -m "description of change"
+PYTHONPATH=$PWD pipenv run alembic revision -m "description of change"
 ```
 
 To apply migrations:
 
 ```bash
-pipenv run alembic upgrade head
+PYTHONPATH=$PWD pipenv run alembic upgrade head
 ```
 
 To revert a migration:
 
 ```bash
-pipenv run alembic downgrade -1
+PYTHONPATH=$PWD pipenv run alembic downgrade -1
 ```
+
+## Database Vector Support
+
+Our system uses high-dimensional vectors (3072 dimensions) for semantic search capabilities:
+
+1. We use pgvector's `halfvec` type for efficient storage of embeddings
+2. HNSW indexes are created for fast similarity searches
+3. Key vector columns:
+   - `agent_messages.context_vector`: halfvec(3072)
+   - `artifacts.content_vector`: halfvec(3072)
+
+Make sure your PostgreSQL has pgvector 0.8.0+ installed to support the `halfvec` type.
 
 ## Environment Variables
 
 The `.env.local` file configures your local environment. Key variables include:
 
-- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`: PostgreSQL connection settings
-- `REDIS_HOST`, `REDIS_PORT`: Redis connection settings
+- `DATABASE_URL`: PostgreSQL connection string (format: `postgresql://user:password@host/dbname`)
+- `REDIS_URL`: Redis connection string
 - `API_HOST`, `API_PORT`: API server settings
 - `DEBUG`: Enable/disable debug mode
 - `LOG_LEVEL`: Set logging verbosity
+- `GEMINI_API_KEY`, `GEMINI_PROJECT`, `GEMINI_LOCATION`: Gemini AI configuration
 
 ## Switching Between Docker and Local Development
 
@@ -155,14 +176,15 @@ The script will copy the appropriate environment file to `.env` and preserve cha
 
 If you encounter PostgreSQL connection errors:
 
-1. Verify PostgreSQL is running with `pg_ctl status`
+1. Verify PostgreSQL is running with `pg_ctl status` or `pg_isready`
 2. Check that the credentials in `.env.local` match your PostgreSQL setup
-3. Ensure your PostgreSQL is configured to accept connections from localhost
+3. Make sure the `software_factory` database exists
+4. Confirm the pgvector extension is installed with `SELECT * FROM pg_extension WHERE extname = 'vector';`
 
-### Redis Connection Issues
+### Vector Support Issues
 
-If you have trouble connecting to Redis:
+If you encounter errors related to vectors:
 
-1. Verify Redis is running with `redis-cli ping`
-2. Check Redis is listening on the port specified in `.env.local`
-3. Ensure no firewall is blocking the Redis port
+1. Check your pgvector version: `SELECT extversion FROM pg_extension WHERE extname = 'vector';`
+2. Make sure it's 0.8.0+ for `halfvec` support
+3. You may need to recreate the database or manually run the migration that converts vectors to halfvec
