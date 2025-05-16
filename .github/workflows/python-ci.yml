@@ -1,0 +1,105 @@
+name: Python CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agents/**"
+      - "app/**"
+      - "infra/db/**"
+      - ".github/workflows/python-ci.yml"
+      - "requirements*.txt"
+  pull_request:
+    branches: [main]
+    paths:
+      - "agents/**"
+      - "app/**"
+      - "infra/db/**"
+      - ".github/workflows/python-ci.yml"
+      - "requirements*.txt"
+
+jobs:
+  lint:
+    name: Lint Python code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black mypy
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+      - name: Lint with ruff
+        run: |
+          ruff check agents app infra
+      - name: Check formatting with black
+        run: |
+          black --check agents app infra
+      - name: Type check with mypy
+        run: |
+          mypy agents app infra
+
+  test:
+    name: Run Python tests
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        volumes:
+          - /tmp/postgres-data:/var/lib/postgresql/data
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+      - name: Enable PostgreSQL extensions
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -c "CREATE EXTENSION IF NOT EXISTS \"pgvector\";"
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/test_db
+          REDIS_URL: redis://localhost:6379/0
+          ENVIRONMENT: testing
+          SECRET_KEY: test-secret-key
+        run: |
+          pytest --cov=agents --cov=app --cov=infra
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true

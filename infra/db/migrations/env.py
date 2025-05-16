@@ -31,10 +31,10 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
-# Default database URL from environment variable with fallback
-database_url = os.getenv(
-    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost/autonomous_ai_dev"
-)
+# Get database URL from alembic.ini
+database_url = config.get_main_option("sqlalchemy.url")
+if not database_url.startswith("postgresql+asyncpg"):
+    database_url = f"postgresql+asyncpg://{database_url[database_url.find('://')+3:]}"
 
 
 def run_migrations_offline() -> None:
@@ -75,12 +75,22 @@ async def run_migrations_online() -> None:
     In this scenario we need to create an Engine
     and associate a connection with the context.
     """
-    connectable = create_async_engine(database_url)
+    # Debug output to see what values we're working with
+    print(f"Using database URL from alembic.ini: {database_url}")
 
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+    try:
+        connectable = create_async_engine(database_url)
 
-    await connectable.dispose()
+        async with connectable.connect() as connection:
+            await connection.run_sync(do_run_migrations)
+
+        await connectable.dispose()
+    except Exception as e:
+        print(f"Error during migration: {e}")
+        import traceback
+
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if context.is_offline_mode():

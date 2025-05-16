@@ -1,0 +1,66 @@
+name: Database Migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/db/migrations/**"
+      - "infra/db/models/**"
+      - ".github/workflows/db-migrations.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/db/migrations/**"
+      - "infra/db/models/**"
+      - ".github/workflows/db-migrations.yml"
+
+jobs:
+  validate-migrations:
+    name: Validate database migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install sqlalchemy alembic asyncpg psycopg2-binary pgvector
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Enable PostgreSQL extensions
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -c "CREATE EXTENSION IF NOT EXISTS \"pgvector\";"
+      - name: Test applying migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/test_db
+        run: |
+          alembic upgrade head
+      - name: Test downgrade migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/test_db
+        run: |
+          alembic downgrade base
+      - name: Test migrations apply again
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/test_db
+        run: |
+          alembic upgrade head

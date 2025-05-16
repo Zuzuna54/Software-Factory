@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 import uuid
+import os
 
 # Base class for all models
 Base = declarative_base()
@@ -40,7 +41,12 @@ class UUID(TypeDecorator):
 
 
 # Database URL configuration - to be loaded from environment variables
-DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost/autonomous_ai_dev"
+DATABASE_URL = os.getenv(
+    "DB_CONNECTION_STRING",
+    "postgresql+asyncpg://postgres:postgres@localhost/software_factory",
+)
+if not DATABASE_URL.startswith("postgresql+asyncpg"):
+    DATABASE_URL = f"postgresql+asyncpg://{DATABASE_URL.split('://', 1)[1]}"
 
 # Create async engine
 engine = create_async_engine(DATABASE_URL)

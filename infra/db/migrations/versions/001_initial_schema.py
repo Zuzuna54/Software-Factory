@@ -7,7 +7,8 @@ Create Date: 2023-07-14 00:00:00.000000
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY, VECTOR
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
+from pgvector.sqlalchemy import Vector
 
 # revision identifiers, used by Alembic.
 revision = "001_initial_schema"
@@ -17,9 +18,21 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Enable required PostgreSQL extensions
+    # Enable required PostgreSQL extensions with existence check
     op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    op.execute('CREATE EXTENSION IF NOT EXISTS "pgvector"')
+
+    # Check if pgvector extension exists before trying to create it
+    op.execute(
+        """
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+            CREATE EXTENSION "pgvector";
+        END IF;
+    END
+    $$;
+    """
+    )
 
     # Create agents table
     op.create_table(
@@ -99,7 +112,7 @@ def upgrade() -> None:
             sa.ForeignKey("agent_messages.message_id"),
             nullable=True,
         ),
-        sa.Column("context_vector", VECTOR(1536), nullable=True),
+        sa.Column("context_vector", Vector(3072), nullable=True),
     )
 
     # Create agent_activities table
@@ -153,7 +166,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(50), nullable=False),
         sa.Column("metadata", JSONB(), nullable=True),
         sa.Column("version", sa.Integer(), nullable=False, server_default=sa.text("1")),
-        sa.Column("content_vector", VECTOR(1536), nullable=True),
+        sa.Column("content_vector", Vector(3072), nullable=True),
     )
 
     # Create meetings table
@@ -421,12 +434,29 @@ def upgrade() -> None:
     op.create_index("ix_artifacts_artifact_type", "artifacts", ["artifact_type"])
     op.create_index("ix_artifacts_created_by", "artifacts", ["created_by"])
 
-    # Create indexes for vector search
+    # For vector columns that need 3072 dimensions
+    # Change vector type to halfvec for high dimensional vectors
     op.execute(
-        "CREATE INDEX ix_agent_messages_context_vector ON agent_messages USING ivfflat (context_vector vector_cosine_ops)"
+        "ALTER TABLE agent_messages ALTER COLUMN context_vector TYPE halfvec(3072) USING context_vector::halfvec(3072)"
     )
     op.execute(
-        "CREATE INDEX ix_artifacts_content_vector ON artifacts USING ivfflat (content_vector vector_cosine_ops)"
+        "ALTER TABLE artifacts ALTER COLUMN content_vector TYPE halfvec(3072) USING content_vector::halfvec(3072)"
+    )
+
+    # Update index creations to use halfvec operators
+    op.execute(
+        """
+        CREATE INDEX ix_agent_messages_context_vector ON agent_messages 
+        USING hnsw (context_vector halfvec_cosine_ops) 
+        WITH (m=16, ef_construction=64)
+        """
+    )
+    op.execute(
+        """
+        CREATE INDEX ix_artifacts_content_vector ON artifacts 
+        USING hnsw (content_vector halfvec_cosine_ops) 
+        WITH (m=16, ef_construction=64)
+        """
     )
 
 

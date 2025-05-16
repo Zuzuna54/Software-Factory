@@ -15,10 +15,11 @@ Establish the foundational infrastructure for the autonomous AI development team
 1. Create the following directory structure:
 
    - `/agents` - Core agent implementation
-   - `/infra` - Infrastructure configuration
-   - `/dashboard` - Monitoring dashboard
-   - `/docs` - Documentation
-   - `/app` - Application code
+
+- `/infra` - Infrastructure configuration
+  - `/dashboard` - Monitoring dashboard
+  - `/docs` - Documentation
+  - `/app` - Application code
 
 2. Initialize core configuration files:
    - `.gitignore` with appropriate exclusions
@@ -108,6 +109,43 @@ Establish the foundational infrastructure for the autonomous AI development team
 
 **Deliverables:** Provisioned cloud resources ready for deployment.
 
+### Task 6: Local Development Setup without Docker
+
+**Description:** Configure a direct local development environment using pipenv, local PostgreSQL, and Redis without Docker for developers who prefer native installations.
+
+**Actions:**
+
+1. Set up Python environment management:
+
+   - Configure Pipenv for dependency management
+   - Create Pipfile and Pipfile.lock with all required packages
+   - Add development-specific packages for testing and linting
+
+2. Configure local PostgreSQL connection:
+
+   - Create setup script for initializing local PostgreSQL database
+   - Add instructions for installing PostgreSQL locally
+   - Script to create database and enable required extensions
+
+3. Configure local Redis:
+
+   - Add instructions for installing Redis locally
+   - Create helper scripts for starting/stopping Redis
+
+4. Environment variable management:
+
+   - Create `.env.example` with all required variables
+   - Create `.env.local` template for direct local development
+   - Document environment variable differences between Docker and direct local setup
+   - Add utility script to switch between environments
+
+5. Create automation scripts:
+   - `setup-local-dev.sh` for initializing the development environment
+   - `start-services.sh` to start PostgreSQL and Redis if not running
+   - Database migration and seeding scripts
+
+**Deliverables:** Complete local development setup with pipenv, scripts for PostgreSQL and Redis configuration, and environment variable management system.
+
 ## Dependencies
 
 None (first iteration)
@@ -119,3 +157,4 @@ None (first iteration)
 - Docker Compose environment starts and runs successfully
 - CI/CD pipeline runs tests automatically on code changes
 - Cloud infrastructure successfully provisions and connects
+- Local development works directly with pipenv, local PostgreSQL, and Redis without Docker

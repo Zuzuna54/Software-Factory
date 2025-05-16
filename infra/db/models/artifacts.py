@@ -15,9 +15,20 @@ from sqlalchemy import (
     String,
     Text,
     Float,
+    func,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, VECTOR
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
+import sqlalchemy as sa
+
+# Add import for HalfVec if available
+try:
+    from pgvector.sqlalchemy import HalfVec
+except ImportError:
+    # If using an older version of pgvector-sqlalchemy that doesn't have HalfVec,
+    # we can create a placeholder that will be handled at the database level
+    from pgvector.sqlalchemy import Vector as HalfVec
 
 from .base import Base, UUID
 
@@ -46,7 +57,7 @@ class RequirementsArtifact(Base):
         UUID(), ForeignKey("requirements_artifacts.artifact_id"), nullable=True
     )
     stakeholder_value = Column(Text)  # Description of business/user value
-    metadata = Column(JSONB)
+    extra_data = Column(JSONB)
 
     # Relationships
     creator = relationship("Agent", foreign_keys=[created_by])
@@ -216,3 +227,33 @@ class DetectedPattern(Base):
     pattern_examples = Column(JSONB)  # Example instances of the pattern
     detection_confidence = Column(Float)
     description = Column(Text)
+
+
+class Artifact(Base):
+    """An artifact is a document or file that is used by agents."""
+
+    __tablename__ = "artifacts"
+
+    id = Column(UUID, primary_key=True, server_default=sa.text("uuid_generate_v4()"))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    content = Column(Text, nullable=True)
+    # Using HalfVec for content_vector to support 3072 dimensions
+    content_vector = Column(HalfVec(3072), nullable=True)
+
+    artifact_type = Column(String, nullable=False)
+    url = Column(String, nullable=True)
+    extra_data = Column(
+        JSONB, nullable=True
+    )  # renamed from metadata to avoid conflicts
+
+    created_by = Column(UUID, ForeignKey("agents.agent_id"), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    def __repr__(self):
+        return f"<Artifact id={self.id} name={self.name}>"
