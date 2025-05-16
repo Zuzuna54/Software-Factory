@@ -1,0 +1,71 @@
+---
+title: Software Factory - Deployment Architecture (GCP)
+---
+flowchart TB
+    %% VPC Network
+    subgraph VPC["VPC Network"]
+        %% Agent System
+        subgraph AgentSystem["Agent System"]
+            API[API Service]
+            Orchestrator[Agent Orchestrator]
+            Celery[Celery Workers]
+            Frontend[Dashboard Frontend]
+        end
+        
+        %% Data Storage
+        subgraph DataStorage["Data Storage"]
+            Postgres[(PostgreSQL)]
+            Redis[(Redis)]
+            Storage[(Cloud Storage)]
+        end
+        
+        %% LLM Services
+        subgraph LLMServices["LLM Services"]
+            Vertex[Vertex AI]
+            Embedding[Embedding Service]
+        end
+        
+        %% CI/CD Pipeline
+        subgraph CICD["CI/CD Pipeline"]
+            CloudBuild[Cloud Build]
+            Artifacts[(Artifact Registry)]
+            CloudRun[Cloud Run]
+        end
+    end
+    
+    %% External Services
+    LoadBalancer[Load Balancer]
+    IAM[IAM & Security]
+    
+    %% Connections
+    LoadBalancer --> API
+    LoadBalancer --> Frontend
+    
+    API --> Orchestrator
+    Orchestrator --> Celery
+    
+    API --> Postgres
+    Orchestrator --> Postgres
+    Celery --> Redis
+    
+    Orchestrator --> Vertex
+    Orchestrator --> Embedding
+    
+    CloudBuild --> Artifacts
+    Artifacts --> CloudRun
+    CloudRun --> API
+    
+    IAM --> VPC
+    
+    %% Styling
+    classDef network fill:#f9f,stroke:#333,stroke-width:2px
+    classDef cloud fill:#bbf,stroke:#333,stroke-width:1px
+    classDef database fill:#bfb,stroke:#333,stroke-width:1px
+    classDef server fill:#ff9,stroke:#333,stroke-width:1px
+    classDef security fill:#fea,stroke:#333,stroke-width:1px
+    
+    class VPC network
+    class AgentSystem,LLMServices,CICD cloud
+    class Postgres,Redis,Storage,Artifacts database
+    class API,Orchestrator,Celery,Frontend,Vertex,Embedding,CloudBuild,CloudRun server
+    class LoadBalancer,IAM security

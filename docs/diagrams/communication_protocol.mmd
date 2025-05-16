@@ -1,0 +1,91 @@
+---
+title: Software Factory - Agent Communication Protocol
+---
+classDiagram
+    class Message {
+        +UUID message_id
+        +UUID sender_id
+        +UUID receiver_id
+        +MessageType type
+        +String content
+        +UUID related_task_id
+        +JSON metadata
+        +UUID parent_message_id
+        +Vector context_vector
+        +Timestamp timestamp
+        +send()
+        +reply(content, type)
+        +thread(content, type)
+    }
+    
+    class MessageType {
+        <<enumeration>>
+        REQUEST
+        INFORM
+        PROPOSE
+        CONFIRM
+        ALERT
+    }
+    
+    class Protocol {
+        +validate(message)
+        +route(message)
+        +persist(message)
+        +broadcast(message, recipients)
+    }
+    
+    class Conversation {
+        +UUID conversation_id
+        +UUID[] participants
+        +Message[] messages
+        +Timestamp start_time
+        +Timestamp end_time
+        +String summary
+        +JSON context
+        +addMessage(message)
+        +getThread(message_id)
+        +getHistory()
+        +summarize()
+    }
+    
+    class CommunicationManager {
+        +handleOutgoingMessage(message)
+        +handleIncomingMessage(message)
+        +createConversation(participants)
+        +joinConversation(agent, conversation)
+        +leaveConversation(agent, conversation)
+        +scheduleMeeting(participants, meeting_type)
+    }
+    
+    class Meeting {
+        +UUID meeting_id
+        +MeetingType type
+        +UUID[] participants
+        +Timestamp scheduled_time
+        +Timestamp start_time
+        +Timestamp end_time
+        +String agenda
+        +JSON decisions
+        +JSON action_items
+        +start()
+        +end()
+        +addParticipant(agent)
+        +removeParticipant(agent)
+    }
+    
+    class MeetingType {
+        <<enumeration>>
+        PLANNING
+        STANDUP
+        REVIEW
+        RETROSPECTIVE
+        BRAINSTORMING
+    }
+    
+    Message -- MessageType : has type
+    Conversation o-- Message : contains
+    CommunicationManager -- Protocol : uses
+    CommunicationManager -- Conversation : manages
+    CommunicationManager -- Meeting : schedules
+    Meeting -- MeetingType : has type
+    Meeting *-- Conversation : has 

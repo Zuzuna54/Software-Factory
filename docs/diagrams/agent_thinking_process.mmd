@@ -1,0 +1,65 @@
+---
+title: Software Factory - Agent Thinking & Decision Process
+---
+flowchart TB
+    subgraph "Input Processing"
+        Task[Task Assignment]
+        Message[Message Received]
+        Event[System Event]
+        
+        Task --> TaskAnalysis[Task Analysis]
+        Message --> MessageAnalysis[Message Analysis]
+        Event --> EventAnalysis[Event Analysis]
+        
+        TaskAnalysis --> ContextGathering
+        MessageAnalysis --> ContextGathering
+        EventAnalysis --> ContextGathering
+    end
+    
+    subgraph "Context Processing"
+        ContextGathering[Context Gathering]
+        ContextGathering --> QueryKB[Query Knowledge Base]
+        QueryKB --> ContextLoading[Context Loading]
+        ContextLoading --> RoleMapping[Role-Specific Framing]
+    end
+    
+    subgraph "Thinking Process"
+        RoleMapping --> Problem[Problem Formulation]
+        Problem --> Options[Generate Solution Options]
+        Options --> Evaluation[Evaluate Options]
+        Evaluation --> Decision[Make Decision]
+        
+        Decision -->|Further information needed| Clarification[Request Clarification]
+        Clarification --> Message
+        
+        Decision -->|Complex problem| Decomposition[Task Decomposition]
+        Decomposition --> SubTasks[Create Sub-Tasks]
+        SubTasks --> Task
+    end
+    
+    subgraph "Execution"
+        Decision -->|Ready to execute| ActionPlanning[Action Planning]
+        ActionPlanning --> ExecuteAction[Execute Action]
+        ExecuteAction --> Verification[Verify Result]
+        Verification -->|Success| OutcomeLogging[Log Outcome]
+        Verification -->|Failure| ErrorRecovery[Error Recovery]
+        ErrorRecovery --> Options
+    end
+    
+    subgraph "Learning & Memory"
+        OutcomeLogging --> MemoryUpdate[Update Memory]
+        MemoryUpdate --> PatternIdentification[Identify Patterns]
+        PatternIdentification --> RuleCreation[Create/Update Rules]
+    end
+    
+    classDef input fill:#f9f,stroke:#333,stroke-width:1px
+    classDef context fill:#bbf,stroke:#333,stroke-width:1px
+    classDef thinking fill:#bfb,stroke:#333,stroke-width:1px
+    classDef execution fill:#ff9,stroke:#333,stroke-width:1px
+    classDef learning fill:#fc9,stroke:#333,stroke-width:1px
+    
+    class Task,Message,Event,TaskAnalysis,MessageAnalysis,EventAnalysis input
+    class ContextGathering,QueryKB,ContextLoading,RoleMapping context
+    class Problem,Options,Evaluation,Decision,Clarification,Decomposition,SubTasks thinking
+    class ActionPlanning,ExecuteAction,Verification,ErrorRecovery execution
+    class OutcomeLogging,MemoryUpdate,PatternIdentification,RuleCreation learning
