@@ -685,6 +685,48 @@ class AgentCLI:
             print("Error during invocation. Check logs.")
             return None
 
+    # --- New Method for one processing cycle ---
+    async def run_agent_cycle(self, agent_id: str):
+        """Instantiate an agent and run one cycle of its processing loop."""
+        await self._ensure_initialized()
+
+        agent_instance = await self._get_agent_instance(agent_id)
+        if not agent_instance:
+            print(f"Error: Could not find or recreate agent {agent_id}")
+            return
+
+        # Ensure the agent has the loop method
+        if not hasattr(agent_instance, "run_processing_loop"):
+            print(
+                f"Error: Agent {agent_id} does not have a run_processing_loop method."
+            )
+            return
+
+        print(f"Running one processing cycle for agent {agent_id}...")
+        try:
+            # We need to call the internal methods directly for one cycle
+            # instead of starting the infinite loop.
+            if hasattr(agent_instance, "check_for_new_tasks"):
+                print(f"Checking for new tasks...")
+                await agent_instance.check_for_new_tasks()
+            else:
+                print(f"Agent {agent_id} missing check_for_new_tasks method.")
+
+            if hasattr(agent_instance, "process_incoming_messages"):
+                print(f"Processing incoming messages...")
+                await agent_instance.process_incoming_messages()
+            else:
+                print(f"Agent {agent_id} missing process_incoming_messages method.")
+
+            print(f"Processing cycle finished for agent {agent_id}.")
+
+        except Exception as e:
+            logger.error(
+                f"Error during agent processing cycle for {agent_id}: {e}",
+                exc_info=True,
+            )
+            print(f"Error during processing cycle. Check logs.")
+
     # --- New Method for Task Dispatch ---
     async def dispatch_celery_task(
         self,
@@ -794,6 +836,14 @@ async def run_cli():
         type=str,
         nargs="*",
         help="Optional list of specific test paths/files to run.",
+    )
+
+    # agent process-cycle (NEW COMMAND)
+    parser_agent_cycle = agent_subparsers.add_parser(
+        "process-cycle", help="Run one check/process cycle for an agent (for testing)."
+    )
+    parser_agent_cycle.add_argument(
+        "--id", type=str, required=True, help="ID of the agent to run cycle for."
     )
 
     # --- Message Commands ---
@@ -973,6 +1023,9 @@ async def run_cli():
                 )
                 if result is not None:
                     print(json.dumps(result, indent=2))
+            elif args.agent_command == "process-cycle":
+                # process-cycle prints its own output
+                await cli.run_agent_cycle(agent_id=args.id)
 
         elif args.command == "message":
             if args.message_command == "send":

@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from ..base_agent import BaseAgent
 from ..git.git_client import GitClient
+from ..communication.protocol import AgentMessage, MessageType
 
 
 class BackendDeveloperAgent(BaseAgent):
@@ -141,6 +142,27 @@ class BackendDeveloperAgent(BaseAgent):
                     author_name="Backend Developer Agent",
                     author_email="backend@ai-agents.com",
                 )
+                # Send CODE_COMMITTED message to QAAgent
+                if commit_hash:
+                    qa_agent_id = "QAAgent"  # Hardcoded for now
+                    message_content = f"Code committed for new endpoint {endpoint_name}. Commit: {commit_hash}"
+                    code_committed_message = AgentMessage(
+                        sender=self.agent_id,
+                        receiver=qa_agent_id,
+                        message_type=MessageType.CODE_COMMITTED,
+                        content=message_content,
+                        related_task=related_task_id,
+                        metadata={
+                            "commit_hash": commit_hash,
+                            "files_changed": list(
+                                created_files.keys()
+                            ),  # Send file paths
+                        },
+                    )
+                    await self.send_message(code_committed_message)
+                    self.logger.info(
+                        f"Sent CODE_COMMITTED message to {qa_agent_id} for task {related_task_id}"
+                    )
 
             # Log the successful implementation
             await self.log_activity(
@@ -303,30 +325,69 @@ class BackendDeveloperAgent(BaseAgent):
 
         # Extract JSON from the response
         try:
+            # Ensure file_path is relative to project root for git operations
+            # This might need adjustment based on how file_path is provided
+            abs_file_path = os.path.abspath(file_path)
+            project_root = os.getcwd()  # Assuming execution from project root
+            if not abs_file_path.startswith(project_root):
+                self.logger.warning(
+                    f"File path {file_path} may not be relative to project root {project_root}"
+                )
+                # Adjust file_path if necessary or ensure it's always relative
+
             # Find JSON content in the response
             start_idx = thought.find("{")
             end_idx = thought.rfind("}") + 1
 
             if start_idx == -1 or end_idx == 0:
-                raise ValueError("No JSON object found in the response")
+                raise ValueError(
+                    "No JSON object found in the LLM response for code fix"
+                )
 
             json_str = thought[start_idx:end_idx]
-            fix_result = json.loads(json_str)
+            response_data = json.loads(json_str)
 
-            # Write the fixed file
+            fixed_code_content = response_data.get("fixed_code")
+            if not fixed_code_content:
+                raise ValueError("LLM response did not contain 'fixed_code' field.")
+
+            # Write the fixed code to the file
             with open(file_path, "w") as f:
-                f.write(fix_result["fixed_code"])
+                f.write(fixed_code_content)
+
+            modified_files = [file_path]
 
             # Commit the changes if git client is available
             commit_hash = None
             if self.git_client:
-                commit_msg = f"fix: {issue_description.split('.')[0]}"
+                commit_msg = f"fix: Address issue in {file_path} for task {related_task_id or 'N/A'}"
                 commit_hash = await self.git_client.commit_changes(
-                    [file_path],
+                    modified_files,
                     commit_msg,
                     author_name="Backend Developer Agent",
                     author_email="backend@ai-agents.com",
                 )
+                # Send CODE_COMMITTED message to QAAgent
+                if commit_hash:
+                    qa_agent_id = "QAAgent"  # Hardcoded for now
+                    message_content = (
+                        f"Code fix committed for {file_path}. Commit: {commit_hash}"
+                    )
+                    code_committed_message = AgentMessage(
+                        sender=self.agent_id,
+                        receiver=qa_agent_id,
+                        message_type=MessageType.CODE_COMMITTED,
+                        content=message_content,
+                        related_task=related_task_id,
+                        metadata={
+                            "commit_hash": commit_hash,
+                            "files_changed": modified_files,
+                        },
+                    )
+                    await self.send_message(code_committed_message)
+                    self.logger.info(
+                        f"Sent CODE_COMMITTED message to {qa_agent_id} for task {related_task_id}"
+                    )
 
             # Log the successful fix
             await self.log_activity(
@@ -335,7 +396,7 @@ class BackendDeveloperAgent(BaseAgent):
                 related_task_id=related_task_id,
                 related_files=[file_path],
                 output_data={
-                    "explanation": fix_result.get("explanation", ""),
+                    "explanation": response_data.get("explanation", ""),
                     "commit_hash": commit_hash,
                 },
             )
@@ -343,7 +404,7 @@ class BackendDeveloperAgent(BaseAgent):
             return {
                 "success": True,
                 "file_path": file_path,
-                "explanation": fix_result.get("explanation", ""),
+                "explanation": response_data.get("explanation", ""),
                 "commit_hash": commit_hash,
             }
 

@@ -10,6 +10,7 @@ from typing import Dict, List, Any, Optional, Tuple, Union
 from uuid import uuid4
 
 from ..base_agent import BaseAgent
+from ..communication.protocol import AgentMessage
 
 
 class QAAgent(BaseAgent):
@@ -41,9 +42,12 @@ class QAAgent(BaseAgent):
         self,
         test_paths: Optional[List[str]] = None,
         related_task_id: Optional[str] = None,
+        commit_hash: Optional[str] = None,
+        files_changed: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Run tests and report results.
+        Can be triggered by a code commit.
         """
         # If no specific tests provided, run all tests
         if not test_paths:
@@ -55,7 +59,11 @@ class QAAgent(BaseAgent):
             description=f"Running tests: {', '.join(test_paths)}",
             related_task_id=related_task_id,
             related_files=test_paths,
-            input_data={"test_paths": test_paths},
+            input_data={
+                "test_paths": test_paths,
+                "commit_hash": commit_hash,
+                "files_changed": files_changed,
+            },
         )
 
         # Run pytest in a subprocess
@@ -391,3 +399,49 @@ class QAAgent(BaseAgent):
             "title": title,
             "assigned_to": assigned_to,
         }
+
+    async def handle_code_committed_message(self, message: AgentMessage):
+        """Handles CODE_COMMITTED messages by triggering tests."""
+        self.logger.info(
+            f"Received CODE_COMMITTED message: {message.message_id} from {message.sender}"
+        )
+
+        commit_hash = message.metadata.get("commit_hash")
+        files_changed = message.metadata.get("files_changed")
+        related_task_id = message.related_task
+
+        if not commit_hash:
+            self.logger.warning(
+                "CODE_COMMITTED message received without commit_hash in metadata."
+            )
+            # Optionally, send a REJECT message or log an error
+            return
+
+        await self.log_activity(
+            activity_type="CodeCommitReceived",
+            description=f"Received code commit notification. Commit: {commit_hash}",
+            related_task_id=related_task_id,
+            input_data=message.to_dict(),
+        )
+
+        # Trigger tests
+        # For now, run_tests will use its default test_paths or those configured.
+        # Future enhancement: Use files_changed to select specific tests.
+        test_results = await self.run_tests(
+            related_task_id=related_task_id,
+            commit_hash=commit_hash,
+            files_changed=files_changed,
+        )
+
+        # TODO: Based on test_results, potentially send BUG_REPORT or other follow-up messages.
+        if test_results.get("success") is False and test_results.get("failing_tests"):
+            self.logger.info(
+                f"Tests failed for commit {commit_hash}. Further action may be needed."
+            )
+            # Example: await self.report_bug(...) or send message to BackendDeveloperAgent
+        elif test_results.get("success") is True:
+            self.logger.info(f"All tests passed for commit {commit_hash}.")
+        else:
+            self.logger.warning(
+                f"Test execution for commit {commit_hash} did not return expected results structure: {test_results}"
+            )

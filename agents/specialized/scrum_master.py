@@ -9,7 +9,7 @@ from uuid import uuid4
 from datetime import datetime, timedelta
 
 from ..base_agent import BaseAgent
-from ..communication.protocol import MessageType
+from ..communication.protocol import MessageType, AgentMessage
 
 
 class ScrumMasterAgent(BaseAgent):
@@ -451,47 +451,68 @@ class ScrumMasterAgent(BaseAgent):
             )
             return False
 
-        # Update task assignment
-        query = """
-        UPDATE tasks SET assigned_to = $1, status = $2 WHERE task_id = $3
-        """
-
-        await self.db_client.execute(query, agent_id, "ASSIGNED", task_id)
-
-        # Log the task assignment
-        await self.log_activity(
-            activity_type="TaskAssignment",
-            description=f"Assigned task {task_id} to agent {agent_id}",
-            output_data={"task_id": task_id, "agent_id": agent_id},
-        )
-
-        # Notify the assigned agent
-        # await self.send_message(
-        #     receiver_id=agent_id,
-        #     content=f"You have been assigned task {task_id}. Please begin work on it.",
-        #     message_type="TASK_ASSIGNMENT",
-        #     related_task_id=task_id,
-        # )
-
-        # Create and send an AgentMessage object
+        task_title = "(unknown title)"
         try:
-            agent_message = self.comm_protocol.create_task_assignment(
+            # 1. Update task assignment in DB
+            query = """
+            UPDATE tasks SET assigned_to = $1, status = $2 WHERE task_id = $3 RETURNING title
+            """
+            result = await self.db_client.fetch_one(
+                query, agent_id, "ASSIGNED", task_id
+            )
+            if result:
+                task_title = result["title"]
+                self.logger.info(
+                    f"Updated task {task_id} assignment in DB for agent {agent_id}."
+                )
+            else:
+                self.logger.error(
+                    f"Failed to update task {task_id} assignment in DB or task not found."
+                )
+                return False
+
+            # 2. Log the activity
+            await self.log_activity(
+                activity_type="TaskAssignment",
+                description=f"Assigned task '{task_title}' ({task_id}) to agent {agent_id}",
+                output_data={
+                    "task_id": task_id,
+                    "agent_id": agent_id,
+                    "task_title": task_title,
+                },
+                related_task_id=task_id,
+            )
+
+            # 3. Notify the assigned agent via AgentMessage
+            notification_message = AgentMessage(
                 sender=self.agent_id,
                 receiver=agent_id,
-                task_id=task_id,
-                content=f"You have been assigned task {task_id}. Please begin work on it.",
-            )
-            await self.send_message(agent_message)
-            self.logger.info(
-                f"Sent TASK_ASSIGNMENT message for task {task_id} to agent {agent_id}"
-            )
-        except Exception as e:
-            self.logger.error(
-                f"Failed to send TASK_ASSIGNMENT message for task {task_id} to agent {agent_id}: {e}",
-                exc_info=True,
+                message_type=MessageType.TASK_ASSIGNMENT,
+                content=f"You have been assigned task '{task_title}'.",
+                related_task=task_id,
+                metadata={"task_title": task_title},
+                # created_at and message_id are handled by the dataclass default factory
             )
 
-        return True
+            message_id = await self.send_message(notification_message)
+
+            if message_id:
+                self.logger.info(
+                    f"Sent TASK_ASSIGNMENT notification (msg_id: {message_id}) to agent {agent_id} for task {task_id}."
+                )
+            else:
+                self.logger.error(
+                    f"Failed to send TASK_ASSIGNMENT notification to agent {agent_id} for task {task_id}."
+                )
+
+            return True
+
+        except Exception as e:
+            self.logger.error(
+                f"Error during task assignment for task {task_id} to agent {agent_id}: {e}",
+                exc_info=True,
+            )
+            return False
 
     async def update_task_status(
         self, task_id: str, status: str, agent_id: Optional[str] = None

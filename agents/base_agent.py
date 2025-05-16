@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 import time
+from collections import deque
 
 # Local imports (ensure correct relative paths)
 from .llm.base import LLMProvider
@@ -752,3 +753,194 @@ class BaseAgent:
 
     def __str__(self) -> str:
         return f"{self.agent_type}(id={self.agent_id}, name={self.agent_name})"
+
+    # --- Core Agent Processing Loop ---
+
+    async def run_processing_loop(self, interval_seconds: int = 5):
+        """Main agent loop to periodically check for tasks and messages."""
+        self.logger.info(f"Agent {self.agent_id} starting processing loop...")
+        while True:
+            try:
+                self.logger.debug(
+                    f"Agent {self.agent_id} loop: Checking for new tasks..."
+                )
+                await self.check_for_new_tasks()
+
+                self.logger.debug(
+                    f"Agent {self.agent_id} loop: Processing incoming messages..."
+                )
+                await self.process_incoming_messages()
+
+            except Exception as e:
+                self.logger.error(f"Error in agent processing loop: {e}", exc_info=True)
+                # Consider adding more robust error handling/recovery
+
+            self.logger.debug(
+                f"Agent {self.agent_id} loop: Sleeping for {interval_seconds}s..."
+            )
+            await asyncio.sleep(interval_seconds)
+
+    async def check_for_new_tasks(self):
+        """Queries the DB for new tasks assigned to this agent."""
+        if not self.db_client:
+            self.logger.warning("No DB client, cannot check for new tasks.")
+            return
+
+        try:
+            # Ensure the query string is clean
+            query = """
+            SELECT task_id, title, description, status, metadata, related_artifacts
+            FROM tasks
+            WHERE assigned_to = $1 AND status = $2
+            LIMIT 10
+            """
+            new_tasks = await self.db_client.fetch_all(query, self.agent_id, "ASSIGNED")
+
+            if not new_tasks:
+                self.logger.debug("No new tasks found.")
+                return
+
+            self.logger.info(
+                f"Found {len(new_tasks)} new tasks assigned via polling."
+            )  # Added clarification
+
+            for task_row in new_tasks:
+                task_details = dict(task_row)
+                task_id = str(task_details["task_id"])
+                self.logger.info(
+                    f"Polling: Processing newly assigned task: {task_id} - '{task_details.get('title')}'"
+                )
+
+                update_query = "UPDATE tasks SET status = $1 WHERE task_id = $2"
+                await self.db_client.execute(update_query, "IN_PROGRESS", task_id)
+                self.logger.info(
+                    f"Polling: Updated task {task_id} status to IN_PROGRESS."
+                )
+
+                await self.handle_task(task_details)
+
+        except Exception as e:
+            self.logger.error(f"Error checking for new tasks: {e}", exc_info=True)
+
+    async def process_incoming_messages(self, limit: int = 10):
+        """Fetches and processes recent incoming messages."""
+        # In a more robust system, we'd need a way to track processed messages
+        # to avoid reprocessing. This could involve:
+        # 1. An in-memory set of processed message IDs (lost on restart)
+        # 2. A 'processed_at' timestamp or status field in the agent_messages table
+        # For now, we just fetch recent messages and process based on type.
+
+        try:
+            # Fetch recent messages addressed to this agent
+            messages = await self.receive_messages(limit=limit)
+
+            if not messages:
+                self.logger.debug("No new messages to process.")
+                return
+
+            self.logger.info(f"Processing {len(messages)} incoming messages.")
+
+            for message in messages:
+                self.logger.debug(
+                    f"Processing message {message.message_id} (Type: {message.message_type.value})"
+                )
+                # Route message to appropriate handler based on type
+                if message.message_type == MessageType.TASK_ASSIGNMENT:
+                    await self.handle_task_assignment_message(message)
+                elif message.message_type == MessageType.BUG_REPORT:  # Example
+                    await self.handle_bug_report_message(message)
+                elif message.message_type == MessageType.CODE_COMMITTED:  # Example
+                    await self.handle_code_committed_message(message)
+                # Add handlers for other message types as needed
+                else:
+                    self.logger.warning(
+                        f"No handler defined for message type: {message.message_type.value}"
+                    )
+
+                # TODO: Implement robust processed message tracking here
+                # E.g., update DB: UPDATE agent_messages SET processed_at = NOW() WHERE message_id = $1
+                # Or add to self.processed_message_ids set
+
+        except Exception as e:
+            self.logger.error(f"Error processing incoming messages: {e}", exc_info=True)
+
+    # --- Task and Message Handlers (Placeholders/Base Implementation) ---
+
+    async def handle_task(self, task_details: Dict[str, Any]):
+        """
+        Handles a task fetched from the database.
+        Intended to be overridden by specialized agents.
+        """
+        task_id = task_details.get("task_id")
+        task_title = task_details.get("title")
+        self.logger.info(
+            f"BaseAgent received task {task_id} ('{task_title}'). No specific action defined in BaseAgent."
+        )
+        # Subclasses should implement logic based on task_details
+        # E.g., call self.implement_api_endpoint, self.run_tests, etc.
+        await asyncio.sleep(1)  # Simulate work
+
+    async def handle_task_assignment_message(self, message: AgentMessage):
+        """
+        Handles a TASK_ASSIGNMENT message.
+        Typically fetches full task details and calls handle_task.
+        Intended to be overridden if specific behavior needed on message receipt.
+        """
+        task_id = message.related_task
+        self.logger.info(
+            f"Received TASK_ASSIGNMENT message for task {task_id}. Content: {message.content}"
+        )
+        if task_id and self.db_client:
+            try:
+                # Fetch full task details from DB
+                query = "SELECT * FROM tasks WHERE task_id = $1"
+                task_row = await self.db_client.fetch_one(query, task_id)
+                if task_row:
+                    task_details = dict(task_row)
+                    # Ensure status reflects potential immediate update from check_for_new_tasks
+                    if task_details.get("status") in ["ASSIGNED", "BACKLOG"]:
+                        update_query = "UPDATE tasks SET status = $1 WHERE task_id = $2"
+                        await self.db_client.execute(
+                            update_query, "IN_PROGRESS", task_id
+                        )
+                        self.logger.info(
+                            f"Updated task {task_id} status to IN_PROGRESS via message handler."
+                        )
+                        task_details["status"] = "IN_PROGRESS"  # Update local copy
+
+                    await self.handle_task(task_details)
+                else:
+                    self.logger.error(
+                        f"Task details not found in DB for task ID {task_id} from assignment message."
+                    )
+            except Exception as e:
+                self.logger.error(
+                    f"Error fetching/handling task details from assignment message {message.message_id}: {e}",
+                    exc_info=True,
+                )
+        else:
+            self.logger.warning(
+                f"Cannot fetch task details for assignment message {message.message_id}: Missing task_id or db_client."
+            )
+
+    async def handle_bug_report_message(self, message: AgentMessage):
+        """
+        Placeholder handler for BUG_REPORT messages.
+        Intended to be overridden by relevant agents (e.g., BackendDeveloperAgent).
+        """
+        self.logger.info(
+            f"Received BUG_REPORT message: {message.message_id}. Content: {message.content}"
+        )
+        # Developer agent would override this to potentially call self.fix_code_issue
+        pass
+
+    async def handle_code_committed_message(self, message: AgentMessage):
+        """
+        Placeholder handler for CODE_COMMITTED messages.
+        Intended to be overridden by relevant agents (e.g., QAAgent).
+        """
+        self.logger.info(
+            f"Received CODE_COMMITTED message: {message.message_id}. Content: {message.content}"
+        )
+        # QA agent would override this to potentially call self.run_tests
+        pass

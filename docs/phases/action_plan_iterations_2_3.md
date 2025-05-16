@@ -145,31 +145,6 @@ This document provides a detailed, actionable plan to implement the features ide
       - Based on the agent's type and the task details, invoke the appropriate specialized method (e.g., a `BackendDeveloperAgent` would call `self.implement_api_endpoint` if the task is for API implementation).
       - This is where the agent's specific capabilities are executed.
 
-### 3. Project Kickoff Mechanism
-
-**Goal:** Define a clear entry point to start analyzing requirements for a new project.
-
-**Chosen Approach:** Implement both CLI command and API endpoint.
-
-**Actionable Steps:**
-
-1.  **Add CLI Kickoff Command:**
-
-    - **File:** `agents/cli/agent_cli.py`
-    - **Logic:**
-      - Add a new command, e.g., `project kickoff`.
-      - Add argument `--description` (required).
-      - In the handler for this command, call the `dispatch_celery_task` method (created in step 1.1) to trigger `analyze_requirements_task` with the provided description.
-      - Example command structure: `python agent_cli.py project kickoff --description "Build a simple todo app"`
-
-2.  **Add API Kickoff Endpoint:**
-    - **File:** `app/api/endpoints/projects.py` (create this file).
-    - **File:** `app/main.py` (update to include the new router).
-    - **Logic:**
-      - Create a POST endpoint like `/projects/kickoff`.
-      - Define a Pydantic model for the request body containing `project_description: str`.
-      - In the endpoint implementation, call the Celery task `analyze_requirements_task.delay(project_description=payload.project_description)`.
-      - Return a confirmation response.
 
 ### 4. Celery Beat Usage
 

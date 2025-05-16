@@ -32,6 +32,7 @@ class MessageType(Enum):
     REVIEW_FEEDBACK = "REVIEW_FEEDBACK"  # Provide feedback from a review
     MEETING_INVITE = "MEETING_INVITE"  # Invite agent(s) to a meeting
     MEETING_MESSAGE = "MEETING_MESSAGE"  # Message sent within the context of a meeting
+    CODE_COMMITTED = "CODE_COMMITTED"  # Notification that code has been committed
 
 
 @dataclass
@@ -418,6 +419,31 @@ class CommunicationProtocol:
             receiver,
             MessageType.REVIEW_FEEDBACK,
             content_payload,
+            conversation_id,
+            related_task,
+            md,
+        )
+
+    def create_code_committed_message(
+        self,
+        sender: str,
+        receiver: str,
+        content: Union[str, Dict[str, Any]],
+        commit_hash: str,
+        files_changed: List[str],
+        conversation_id: Optional[str] = None,
+        related_task: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> AgentMessage:
+        """Create a CODE_COMMITTED message."""
+        md = metadata or {}
+        md["commit_hash"] = commit_hash
+        md["files_changed"] = files_changed
+        return self._create_message(
+            sender,
+            receiver,
+            MessageType.CODE_COMMITTED,
+            content,
             conversation_id,
             related_task,
             md,
