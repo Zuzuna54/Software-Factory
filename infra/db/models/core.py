@@ -105,6 +105,9 @@ class AgentMessage(Base):
         UUID, ForeignKey("tasks.task_id"), nullable=True
     )  # Match the actual column name
     meeting_id = Column(UUID, ForeignKey("meetings.meeting_id"), nullable=True)
+    conversation_id = Column(
+        UUID, ForeignKey("conversations.conversation_id"), nullable=True
+    )
 
     content = Column(Text, nullable=False)
     # Using HalfVec for context_vector to support 3072 dimensions
@@ -131,6 +134,7 @@ class AgentMessage(Base):
         "Task", back_populates="messages"
     )  # Match the column name
     meeting = relationship("Meeting", back_populates="messages")
+    conversation = relationship("Conversation", back_populates="messages")
     parent_message = relationship("AgentMessage", remote_side=[message_id])
 
     def __repr__(self):
@@ -248,5 +252,31 @@ class MeetingConversation(Base):
     message_type = Column(String(50), nullable=True)
 
     # Relationships
-    meeting = relationship("Meeting", back_populates="conversations")
     speaker = relationship("Agent")
+    meeting = relationship("Meeting", back_populates="conversations")
+
+
+class Conversation(Base):
+    """Model for general conversations between agents"""
+
+    __tablename__ = "conversations"
+    __mapper_args__ = {"exclude_properties": ["id"]}
+
+    conversation_id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    topic = Column(String(255), nullable=True)
+    status = Column(String(50), nullable=False, default="active")
+    participant_ids = Column(ARRAY(UUID), nullable=True)
+    extra_data = Column(
+        JSONB, nullable=True
+    )  # Changed from metadata to avoid conflict with SQLAlchemy
+
+    # Relationship to associated messages
+    messages = relationship(
+        "AgentMessage",
+        primaryjoin="Conversation.conversation_id == foreign(AgentMessage.extra_data['conversation_id'].astext.cast(UUID))",
+        viewonly=True,
+    )

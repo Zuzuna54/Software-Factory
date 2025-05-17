@@ -1,8 +1,8 @@
 """
-Main entry point for CLI module.
+Main entry point for the CLI module.
 """
 
-from agents.cli import main
+from .cli_app import main
 
 if __name__ == "__main__":
     main()

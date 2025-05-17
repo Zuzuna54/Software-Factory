@@ -1,7 +1,7 @@
 """
-CLI tools for testing and interacting with agents.
+Agent CLI module for testing agent interactions.
 """
 
-from .agent_cli import main
+from .cli_app import main
 
 __all__ = ["main"]
