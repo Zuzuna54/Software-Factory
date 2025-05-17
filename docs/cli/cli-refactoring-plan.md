@@ -150,18 +150,6 @@ The system uses PostgreSQL with the following key components:
    - Add `log metrics`: Show logging metrics
    - Add `log export`: Export logs to file
 
-### Phase 4: Database Schema Validation and Management
-
-1. **Add Schema Validation Commands:**
-
-   - Add `db validate`: Validate database schema matches models
-   - Add `db migrate`: Run pending migrations
-   - Add `db rollback`: Rollback to previous migration
-
-2. **Add Data Validation Commands:**
-   - Add `db verify-integrity`: Check foreign key integrity
-   - Add `db check-constraints`: Validate data constraints
-
 ## Implementation Details
 
 ### 1. Database-First Agent Management

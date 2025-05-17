@@ -508,10 +508,11 @@ async def handle_command(args: argparse.Namespace) -> None:
 
                 msg_id = await send_message(
                     cli,
-                    args.type,
                     args.sender,
                     args.recipient,
+                    MessageType(args.type),
                     content,
+                    None,  # conversation_id
                     args.reply_to,
                 )
                 print(f"Sent message: {msg_id}")
@@ -530,7 +531,7 @@ async def handle_command(args: argparse.Namespace) -> None:
                     args.action,
                     parameters,
                     args.priority,
-                    args.reply_to,
+                    in_reply_to=args.reply_to,
                 )
                 print(f"Sent request message: {msg_id}")
 
@@ -547,7 +548,7 @@ async def handle_command(args: argparse.Namespace) -> None:
                     args.recipient,
                     args.type,
                     data,
-                    args.reply_to,
+                    in_reply_to=args.reply_to,
                 )
                 print(f"Sent inform message: {msg_id}")
 

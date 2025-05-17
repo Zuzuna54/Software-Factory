@@ -43,47 +43,18 @@ async def send_message(
     Returns:
         The message if sent successfully, None otherwise
     """
-    # Check if sender exists
-    if sender_id not in cli.agents:
-        logger.error(f"Sender agent not found: {sender_id}")
-        return None
-
-    # Check if recipient exists
-    if recipient_id not in cli.agents:
-        logger.error(f"Recipient agent not found: {recipient_id}")
-        return None
-
-    # Determine conversation
-    if conversation_id:
-        # Use specified conversation
-        if conversation_id not in cli.conversations:
-            logger.error(f"Conversation not found: {conversation_id}")
-            return None
-        conversation = cli.conversations[conversation_id]
-    elif cli.current_conversation_id:
-        # Use current conversation
-        conversation = cli.conversations[cli.current_conversation_id]
-    else:
-        # Create a new conversation
-        from .cli_conversation_ops import create_conversation
-
-        conversation_id = create_conversation(
-            cli, topic=f"Conversation between {sender_id} and {recipient_id}"
-        )
-        conversation = cli.conversations[conversation_id]
-
     # Create message
     message = Message(
         sender_id=sender_id,
         recipient_id=recipient_id,
         message_type=message_type,
         content=content,
-        conversation_id=conversation.conversation_id,
+        conversation_id=conversation_id,
         in_reply_to=in_reply_to,
     )
 
-    # Send through conversation
-    success = await conversation.add_message(message)
+    # Send directly using the protocol
+    success = await cli.protocol.send_message(message)
 
     if success:
         logger.info(f"Message sent: {message.message_id}")
@@ -126,10 +97,6 @@ async def send_request(
         **kwargs,
     )
 
-    if cli.current_conversation:
-        success = await cli.current_conversation.add_message(message)
-        return message if success else None
-
     success = await cli.protocol.send_message(message)
     return message if success else None
 
@@ -163,10 +130,6 @@ async def send_inform(
         data=data,
         **kwargs,
     )
-
-    if cli.current_conversation:
-        success = await cli.current_conversation.add_message(message)
-        return message if success else None
 
     success = await cli.protocol.send_message(message)
     return message if success else None
@@ -208,10 +171,6 @@ async def send_propose(
         **kwargs,
     )
 
-    if cli.current_conversation:
-        success = await cli.current_conversation.add_message(message)
-        return message if success else None
-
     success = await cli.protocol.send_message(message)
     return message if success else None
 
@@ -248,10 +207,6 @@ async def send_confirm(
         comments=comments,
         **kwargs,
     )
-
-    if cli.current_conversation:
-        success = await cli.current_conversation.add_message(message)
-        return message if success else None
 
     success = await cli.protocol.send_message(message)
     return message if success else None
@@ -292,10 +247,6 @@ async def send_alert(
         suggested_actions=suggested_actions,
         **kwargs,
     )
-
-    if cli.current_conversation:
-        success = await cli.current_conversation.add_message(message)
-        return message if success else None
 
     success = await cli.protocol.send_message(message)
     return message if success else None

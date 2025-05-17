@@ -6,14 +6,22 @@ agent entities in the system.
 """
 
 import uuid
+import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from infra.db.models import Agent
 from sqlalchemy.future import select
 
+from infra.db.models.core import Agent as AgentModel
 from .cli_core import AgentCLI, logger
-from .cli_utils import ensure_uuid, get_uuid_str, generate_uuid
+from .cli_utils import (
+    ensure_uuid,
+    get_uuid_str,
+    generate_uuid,
+    format_uuid,
+    is_valid_uuid,
+)
 
 
 async def create_agent(
@@ -303,3 +311,421 @@ async def get_agent_messages(
         as_recipient=as_recipient,
         limit=limit,
     )
+
+
+async def create_base_agent(
+    cli: AgentCLI,
+    agent_id: Optional[str] = None,
+    agent_name: str = "Test Base Agent",
+    system_prompt: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Create a BaseAgent instance for testing.
+
+    Args:
+        cli: The AgentCLI instance
+        agent_id: Optional agent ID (auto-generated if not provided)
+        agent_name: Name for the agent
+        system_prompt: System prompt for the agent
+
+    Returns:
+        Dictionary with agent details
+    """
+    try:
+        # Generate UUID if not provided
+        if agent_id:
+            agent_id = format_uuid(agent_id)
+        else:
+            agent_id = str(uuid.uuid4())
+
+        # Create agent in database
+        async with cli.db_client.session() as session:
+            # Check if agent already exists
+            existing = await session.execute(
+                select(AgentModel).where(AgentModel.agent_id == uuid.UUID(agent_id))
+            )
+            if existing.scalar_one_or_none():
+                logger.info(f"Agent already exists: {agent_id}")
+                agent = existing.scalar_one()
+            else:
+                # Create new agent
+                agent = AgentModel(
+                    agent_id=uuid.UUID(agent_id),
+                    agent_name=agent_name,
+                    agent_type="base",
+                    agent_role="test",
+                    system_prompt=system_prompt
+                    or f"You are {agent_name}, a test agent.",
+                    status="active",
+                    created_at=datetime.utcnow(),
+                )
+                session.add(agent)
+                await session.commit()
+
+        # Now create a BaseAgent instance
+        from agents.base import BaseAgent
+
+        # Initialize BaseAgent with the database agent
+        base_agent = BaseAgent(
+            agent_id=agent_id,
+            agent_type="base",
+            agent_name=agent_name,
+            system_prompt=system_prompt,
+            db_client=cli.db_client,
+        )
+
+        logger.info(f"Created BaseAgent: {agent_id}")
+
+        return {
+            "agent_id": agent_id,
+            "agent_name": agent_name,
+            "agent_type": "base",
+            "system_prompt": system_prompt,
+            "status": "active",
+            "created_at": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Error creating base agent: {str(e)}")
+        return {"status": "error", "error": str(e)}
+
+
+async def test_agent_thinking(
+    cli: AgentCLI, agent_id: str, prompt: str, max_tokens: int = 100
+) -> Dict[str, Any]:
+    """
+    Test an agent's thinking capability.
+
+    Args:
+        cli: The AgentCLI instance
+        agent_id: ID of the agent
+        prompt: Prompt for the agent to think about
+        max_tokens: Maximum tokens for the response
+
+    Returns:
+        Dictionary with agent's thinking result
+    """
+    try:
+        # Get agent details
+        agent = await get_agent(cli, agent_id)
+        if not agent:
+            return {"status": "error", "error": f"Agent not found: {agent_id}"}
+
+        # Create a BaseAgent instance
+        from agents.base import BaseAgent
+
+        base_agent = BaseAgent(
+            agent_id=agent_id,
+            agent_type=agent.get("type", "test"),
+            agent_name=agent.get("name", "Test Agent"),
+            system_prompt=agent.get("system_prompt", "You are a test agent."),
+            db_client=cli.db_client,
+        )
+
+        # Mock thinking for now
+        # In a real implementation, this would use the agent's actual thinking capability
+        start_time = datetime.now()
+
+        thinking_output = (
+            f"Thinking about: {prompt}\n\n"
+            + f"Analysis: This is a simulated thinking process for agent {agent_id}.\n"
+            + f"The prompt was analyzed and processed according to my system prompt.\n"
+            + f"This is a demonstration of the thinking capability."
+        )
+
+        # Log the thinking activity
+        await base_agent.log_activity(
+            activity_type="thinking",
+            description=f"Test thinking on prompt: {prompt}",
+            thought_process=thinking_output,
+            input_data={"prompt": prompt},
+            output_data={"thinking": thinking_output},
+        )
+
+        execution_time = (datetime.now() - start_time).total_seconds() * 1000
+
+        return {
+            "status": "success",
+            "agent_id": agent_id,
+            "agent_name": agent.get("name"),
+            "prompt": prompt,
+            "thinking": thinking_output,
+            "execution_time_ms": execution_time,
+        }
+    except Exception as e:
+        logger.error(f"Error testing agent thinking: {str(e)}")
+        return {"status": "error", "error": str(e)}
+
+
+async def manage_agent_capabilities(
+    cli: AgentCLI, agent_id: str, action: str, capabilities: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """
+    Set or get agent capabilities.
+
+    Args:
+        cli: The AgentCLI instance
+        agent_id: ID of the agent
+        action: Action to perform (get, set, add, remove)
+        capabilities: List of capabilities to set, add, or remove
+
+    Returns:
+        Dictionary with updated capabilities
+    """
+    try:
+        # Get agent details
+        agent = await get_agent(cli, agent_id)
+        if not agent:
+            return {"status": "error", "error": f"Agent not found: {agent_id}"}
+
+        current_capabilities = agent.get("capabilities", {}).get("capabilities", [])
+
+        if action == "get":
+            return {
+                "status": "success",
+                "agent_id": agent_id,
+                "agent_name": agent.get("name"),
+                "capabilities": current_capabilities,
+            }
+
+        if capabilities is None and action != "get":
+            return {
+                "status": "error",
+                "error": "Capabilities must be provided for set, add, or remove actions",
+            }
+
+        # Update capabilities based on action
+        new_capabilities = current_capabilities.copy()
+
+        if action == "set":
+            new_capabilities = capabilities
+        elif action == "add":
+            for cap in capabilities:
+                if cap not in new_capabilities:
+                    new_capabilities.append(cap)
+        elif action == "remove":
+            new_capabilities = [
+                cap for cap in new_capabilities if cap not in capabilities
+            ]
+        else:
+            return {"status": "error", "error": f"Invalid action: {action}"}
+
+        # Update agent in database
+        async with cli.db_client.session() as session:
+            result = await session.execute(
+                select(AgentModel).where(AgentModel.agent_id == uuid.UUID(agent_id))
+            )
+            db_agent = result.scalar_one_or_none()
+
+            if not db_agent:
+                return {
+                    "status": "error",
+                    "error": f"Agent not found in database: {agent_id}",
+                }
+
+            db_agent.capabilities = {"capabilities": new_capabilities}
+            await session.commit()
+
+        return {
+            "status": "success",
+            "agent_id": agent_id,
+            "agent_name": agent.get("name"),
+            "action": action,
+            "previous_capabilities": current_capabilities,
+            "updated_capabilities": new_capabilities,
+        }
+    except Exception as e:
+        logger.error(f"Error managing agent capabilities: {str(e)}")
+        return {"status": "error", "error": str(e)}
+
+
+async def set_agent_status(cli: AgentCLI, agent_id: str, status: str) -> Dict[str, Any]:
+    """
+    Change agent status.
+
+    Args:
+        cli: The AgentCLI instance
+        agent_id: ID of the agent
+        status: New agent status
+
+    Returns:
+        Dictionary with updated status
+    """
+    try:
+        # Validate status
+        valid_statuses = [
+            "active",
+            "inactive",
+            "busy",
+            "error",
+            "initializing",
+            "terminated",
+        ]
+        if status not in valid_statuses:
+            return {
+                "status": "error",
+                "error": f"Invalid status: {status}. Valid statuses: {', '.join(valid_statuses)}",
+            }
+
+        # Get agent details
+        agent = await get_agent(cli, agent_id)
+        if not agent:
+            return {"status": "error", "error": f"Agent not found: {agent_id}"}
+
+        previous_status = agent.get("status")
+
+        # Update agent status
+        async with cli.db_client.session() as session:
+            result = await session.execute(
+                select(AgentModel).where(AgentModel.agent_id == uuid.UUID(agent_id))
+            )
+            db_agent = result.scalar_one_or_none()
+
+            if not db_agent:
+                return {
+                    "status": "error",
+                    "error": f"Agent not found in database: {agent_id}",
+                }
+
+            db_agent.status = status
+            await session.commit()
+
+        logger.info(
+            f"Updated agent status: {agent_id} from {previous_status} to {status}"
+        )
+
+        return {
+            "status": "success",
+            "agent_id": agent_id,
+            "agent_name": agent.get("name"),
+            "previous_status": previous_status,
+            "new_status": status,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Error setting agent status: {str(e)}")
+        return {"status": "error", "error": str(e)}
+
+
+async def simulate_agent_error(
+    cli: AgentCLI, agent_id: str, error_type: str, recover: bool = True
+) -> Dict[str, Any]:
+    """
+    Simulate an error condition for an agent.
+
+    Args:
+        cli: The AgentCLI instance
+        agent_id: ID of the agent
+        error_type: Type of error to simulate
+        recover: Whether to automatically recover the agent
+
+    Returns:
+        Dictionary with simulation results
+    """
+    try:
+        # Get agent details
+        agent = await get_agent(cli, agent_id)
+        if not agent:
+            return {"status": "error", "error": f"Agent not found: {agent_id}"}
+
+        # Validate error type
+        valid_error_types = ["connection", "timeout", "permission", "memory", "runtime"]
+        if error_type not in valid_error_types:
+            return {
+                "status": "error",
+                "error": f"Invalid error type: {error_type}. Valid types: {', '.join(valid_error_types)}",
+            }
+
+        # Set error message based on type
+        error_messages = {
+            "connection": "Simulated connection error: Could not connect to required service",
+            "timeout": "Simulated timeout error: Operation timed out after 30 seconds",
+            "permission": "Simulated permission error: Insufficient permissions to perform operation",
+            "memory": "Simulated memory error: Out of memory when processing large dataset",
+            "runtime": "Simulated runtime error: Unexpected exception during execution",
+        }
+
+        error_message = error_messages.get(error_type)
+
+        # Create a BaseAgent instance
+        from agents.base import BaseAgent
+
+        base_agent = BaseAgent(
+            agent_id=agent_id,
+            agent_type=agent.get("type", "test"),
+            agent_name=agent.get("name", "Test Agent"),
+            system_prompt=agent.get("system_prompt", "You are a test agent."),
+            db_client=cli.db_client,
+        )
+
+        # Log the error activity
+        await base_agent.log_activity(
+            activity_type="error",
+            description=f"Simulated {error_type} error",
+            thought_process="Error simulation requested by CLI",
+            input_data={"error_type": error_type, "recover": recover},
+            output_data={"error_message": error_message},
+        )
+
+        # Set agent to error state
+        previous_status = agent.get("status")
+        async with cli.db_client.session() as session:
+            result = await session.execute(
+                select(AgentModel).where(AgentModel.agent_id == uuid.UUID(agent_id))
+            )
+            db_agent = result.scalar_one_or_none()
+
+            if db_agent:
+                db_agent.status = "error"
+                db_agent.extra_data = {
+                    **(db_agent.extra_data or {}),
+                    "last_error": {
+                        "type": error_type,
+                        "message": error_message,
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
+                }
+                await session.commit()
+
+        # Recover if requested
+        if recover:
+            await asyncio.sleep(2)  # Simulate recovery time
+
+            async with cli.db_client.session() as session:
+                result = await session.execute(
+                    select(AgentModel).where(AgentModel.agent_id == uuid.UUID(agent_id))
+                )
+                db_agent = result.scalar_one_or_none()
+
+                if db_agent:
+                    db_agent.status = previous_status
+                    db_agent.extra_data = {
+                        **(db_agent.extra_data or {}),
+                        "recovery": {
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "recovered_from": error_type,
+                        },
+                    }
+                    await session.commit()
+
+            # Log recovery
+            await base_agent.log_activity(
+                activity_type="recovery",
+                description=f"Recovered from simulated {error_type} error",
+                thought_process="Automatic recovery after error simulation",
+                input_data={"error_type": error_type},
+                output_data={"result": "success"},
+            )
+
+        return {
+            "status": "success",
+            "agent_id": agent_id,
+            "agent_name": agent.get("name"),
+            "error_type": error_type,
+            "error_message": error_message,
+            "recovered": recover,
+            "recovery_time_ms": 2000 if recover else None,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Error simulating agent error: {str(e)}")
+        return {"status": "error", "error": str(e)}
