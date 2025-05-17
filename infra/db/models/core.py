@@ -51,12 +51,6 @@ class Base(DeclarativeBase):
     def __tablename__(cls) -> str:
         return cls.__name__.lower()
 
-    id = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
-    created_at = mapped_column(DateTime, default=func.now(), nullable=False)
-    updated_at = mapped_column(
-        DateTime, default=func.now(), onupdate=func.now(), nullable=False
-    )
-
     # Define a vector column type for embeddings (3072 dimensions for Gemini)
     @staticmethod
     def get_vector_column(dimension=3072):
@@ -67,21 +61,26 @@ class Agent(Base):
     """Agent model for representing AI team members"""
 
     __tablename__ = "agents"
+    __mapper_args__ = {"exclude_properties": ["id"]}
 
     agent_id = Column(UUID, primary_key=True, default=uuid.uuid4)
     agent_type = Column(String(50), nullable=False)
     agent_name = Column(String(100), nullable=False)
     agent_role = Column(String(100), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    capabilities = Column(ARRAY(String), nullable=False)
+    capabilities = Column(JSONB, nullable=True)
     system_prompt = Column(Text, nullable=True)
     status = Column(String(50), default="active", nullable=False)
     extra_data = Column(JSONB, nullable=True)  # Renamed from metadata to avoid conflict
 
     # Relationships
-    sent_messages = relationship("AgentMessage", foreign_keys="AgentMessage.sender_id")
+    sent_messages = relationship(
+        "AgentMessage", foreign_keys="AgentMessage.sender_id", back_populates="sender"
+    )
     received_messages = relationship(
-        "AgentMessage", foreign_keys="AgentMessage.receiver_id"
+        "AgentMessage",
+        foreign_keys="AgentMessage.receiver_id",
+        back_populates="recipient",
     )
     activities = relationship("AgentActivity", back_populates="agent")
 
@@ -90,6 +89,7 @@ class AgentMessage(Base):
     """Model for inter-agent communication"""
 
     __tablename__ = "agent_messages"
+    __mapper_args__ = {"exclude_properties": ["id"]}
 
     message_id = Column(
         UUID, primary_key=True, server_default=sa.text("gen_random_uuid()")
@@ -98,7 +98,12 @@ class AgentMessage(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     sender_id = Column(UUID, ForeignKey("agents.agent_id"), nullable=False)
-    task_id = Column(UUID, ForeignKey("tasks.task_id"), nullable=True)
+    receiver_id = Column(
+        UUID, ForeignKey("agents.agent_id"), nullable=True
+    )  # Use receiver_id to match DB
+    related_task_id = Column(
+        UUID, ForeignKey("tasks.task_id"), nullable=True
+    )  # Match the actual column name
     meeting_id = Column(UUID, ForeignKey("meetings.meeting_id"), nullable=True)
 
     content = Column(Text, nullable=False)
@@ -116,8 +121,15 @@ class AgentMessage(Base):
     )
 
     # Relationships
-    sender = relationship("Agent", back_populates="messages")
-    task = relationship("Task", back_populates="messages")
+    sender = relationship(
+        "Agent", foreign_keys=[sender_id], back_populates="sent_messages"
+    )
+    recipient = relationship(
+        "Agent", foreign_keys=[receiver_id], back_populates="received_messages"
+    )
+    related_task = relationship(
+        "Task", back_populates="messages"
+    )  # Match the column name
     meeting = relationship("Meeting", back_populates="messages")
     parent_message = relationship("AgentMessage", remote_side=[message_id])
 
@@ -129,6 +141,7 @@ class AgentActivity(Base):
     """Model for tracking agent actions and decisions"""
 
     __tablename__ = "agent_activities"
+    __mapper_args__ = {"exclude_properties": ["id"]}
 
     activity_id = Column(UUID, primary_key=True, default=uuid.uuid4)
     agent_id = Column(UUID, ForeignKey("agents.agent_id"), nullable=False)
@@ -145,6 +158,7 @@ class Artifact(Base):
     """Model for general artifact storage"""
 
     __tablename__ = "artifacts"
+    __mapper_args__ = {"exclude_properties": ["id"]}
 
     artifact_id = Column(UUID, primary_key=True, default=uuid.uuid4)
     artifact_type = Column(String(50), nullable=False)
@@ -170,6 +184,7 @@ class Task(Base):
     """Model for task definitions and assignments"""
 
     __tablename__ = "tasks"
+    __mapper_args__ = {"exclude_properties": ["id"]}
 
     task_id = Column(UUID, primary_key=True, default=uuid.uuid4)
     title = Column(String(255), nullable=False)
@@ -196,6 +211,7 @@ class Meeting(Base):
     """Model for agile ceremony records"""
 
     __tablename__ = "meetings"
+    __mapper_args__ = {"exclude_properties": ["id"]}
 
     meeting_id = Column(UUID, primary_key=True, default=uuid.uuid4)
     meeting_type = Column(String(50), nullable=False)
@@ -209,12 +225,14 @@ class Meeting(Base):
 
     # Relationships
     conversations = relationship("MeetingConversation", back_populates="meeting")
+    messages = relationship("AgentMessage", back_populates="meeting")
 
 
 class MeetingConversation(Base):
     """Model for meeting conversations"""
 
     __tablename__ = "meeting_conversations"
+    __mapper_args__ = {"exclude_properties": ["id"]}
 
     conversation_id = Column(UUID, primary_key=True, default=uuid.uuid4)
     meeting_id = Column(UUID, ForeignKey("meetings.meeting_id"), nullable=False)
