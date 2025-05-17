@@ -9,6 +9,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
 from agents.base_agent import BaseAgent
 from infra.db.models import Agent, AgentActivity
@@ -48,7 +49,7 @@ async def test_base_agent():
             await agent.initialize_db()
 
             # Verify the agent exists in database
-            query = f"SELECT * FROM agents WHERE agent_id = '{agent.agent_id}'"
+            query = text(f"SELECT * FROM agents WHERE agent_id = '{agent.agent_id}'")
             result = await db_session.execute(query)
             agent_record = result.first()
 
@@ -75,11 +76,11 @@ async def test_base_agent():
                 return False
 
             # 4. Test activity logging
-            print("Testing activity logging...")
+            print("Testing agent activity logging...")
             activity_id = await agent.log_activity(
-                activity_type="verification_test",
-                description="Testing activity logging",
-                details={"test": True, "timestamp": datetime.utcnow().isoformat()},
+                activity_type="test_activity",
+                description="Testing the log_activity method",
+                input_data={"test": True, "timestamp": datetime.utcnow().isoformat()},
             )
 
             if activity_id:
@@ -91,10 +92,12 @@ async def test_base_agent():
             # 5. Clean up the test data
             print("Cleaning up test data...")
             await db_session.execute(
-                f"DELETE FROM agent_activities WHERE agent_id = '{agent.agent_id}'"
+                text(
+                    f"DELETE FROM agent_activities WHERE agent_id = '{agent.agent_id}'"
+                )
             )
             await db_session.execute(
-                f"DELETE FROM agents WHERE agent_id = '{agent.agent_id}'"
+                text(f"DELETE FROM agents WHERE agent_id = '{agent.agent_id}'")
             )
             await db_session.commit()
 

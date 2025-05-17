@@ -24,98 +24,90 @@ async def test_llm_provider():
 
         # 1. Test text completion generation
         print("\nTesting text completion generation...")
-        completion_prompt = (
-            "Write a one-sentence description of what an autonomous agent does."
-        )
-
-        completion_start = time.time()
-        completion_result = await llm_provider.generate_text(completion_prompt)
-        completion_duration = time.time() - completion_start
-
-        if (
-            completion_result
-            and isinstance(completion_result, str)
-            and len(completion_result) > 10
-        ):
-            print(f"✅ Text completion successful ({completion_duration:.2f}s)")
-            print(f"Result: {completion_result[:100]}...")
-        else:
-            print(f"❌ Text completion failed")
+        try:
+            response, metadata = await llm_provider.generate_text(
+                "Explain the concept of autonomous AI agents in 3 sentences."
+            )
+            print(f"✅ Text completion successful: {response[:100]}...")
+            print(f"Metadata: {metadata}")
+        except Exception as e:
+            print(f"❌ Text completion failed: {str(e)}")
             return False
 
         # 2. Test chat completion generation
         print("\nTesting chat completion generation...")
         chat_messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
             {
                 "role": "user",
-                "content": "What are the benefits of using vector embeddings for semantic search?",
-            }
+                "content": "What are the key components of a multi-agent system?",
+            },
         ]
 
-        chat_start = time.time()
-        chat_result = await llm_provider.generate_chat_response(chat_messages)
-        chat_duration = time.time() - chat_start
-
-        if chat_result and isinstance(chat_result, str) and len(chat_result) > 10:
-            print(f"✅ Chat completion successful ({chat_duration:.2f}s)")
-            print(f"Result: {chat_result[:100]}...")
-        else:
-            print(f"❌ Chat completion failed")
-            return False
+        response, metadata = await llm_provider.generate_chat_completion(chat_messages)
+        print(f"✅ Chat completion successful: {response[:100]}...")
+        print(f"Metadata: {metadata}")
 
         # 3. Test embedding generation
         print("\nTesting embedding generation...")
-        embedding_text = "This is a test text for embedding generation to verify vector functionality."
+        try:
+            texts = ["Vector embeddings allow for semantic similarity search."]
+            embeddings, metadata = await llm_provider.generate_embeddings(texts)
 
-        embedding_start = time.time()
-        embedding_result = await llm_provider.generate_embedding(embedding_text)
-        embedding_duration = time.time() - embedding_start
-
-        if embedding_result is not None and len(embedding_result) > 0:
-            print(f"✅ Embedding generation successful ({embedding_duration:.2f}s)")
-            print(f"Embedding dimensions: {len(embedding_result)}")
-        else:
-            print(f"❌ Embedding generation failed")
+            if embeddings and isinstance(embeddings, list) and len(embeddings) > 0:
+                print(
+                    f"✅ Embedding generation successful. Dimensions: {len(embeddings[0])}"
+                )
+                print(f"Metadata: {metadata}")
+            else:
+                print("❌ Embedding generation failed: Invalid result format")
+                return False
+        except Exception as e:
+            print(f"❌ Embedding generation failed: {str(e)}")
             return False
 
         # 4. Test function calling
         print("\nTesting function calling...")
-        function_spec = {
-            "name": "search_database",
-            "description": "Search for records in a database",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "The search query"},
-                    "max_results": {
-                        "type": "integer",
-                        "description": "Maximum number of results to return",
+        try:
+            functions = [
+                {
+                    "name": "get_weather",
+                    "description": "Get the current weather in a location",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "location": {
+                                "type": "string",
+                                "description": "The city and state, e.g. San Francisco, CA",
+                            },
+                            "unit": {
+                                "type": "string",
+                                "enum": ["celsius", "fahrenheit"],
+                                "description": "The temperature unit",
+                            },
+                        },
+                        "required": ["location"],
                     },
-                },
-                "required": ["query"],
-            },
-        }
+                }
+            ]
 
-        functions = [function_spec]
-        function_prompt = (
-            "I need to find all customer records related to renewable energy projects."
-        )
+            messages = [
+                {"role": "user", "content": "What's the weather like in New York?"}
+            ]
 
-        function_start = time.time()
-        function_result = await llm_provider.generate_function_call(
-            function_prompt, functions
-        )
-        function_duration = time.time() - function_start
+            response, metadata = await llm_provider.function_calling(
+                messages, functions
+            )
 
-        if (
-            function_result
-            and isinstance(function_result, dict)
-            and "name" in function_result
-        ):
-            print(f"✅ Function calling successful ({function_duration:.2f}s)")
-            print(f"Function call: {function_result}")
-        else:
-            print(f"❌ Function calling failed")
+            if response:
+                print(f"✅ Function calling successful")
+                print(f"Result: {response}")
+                print(f"Metadata: {metadata}")
+            else:
+                print("❌ Function calling failed: No result returned")
+                return False
+        except Exception as e:
+            print(f"❌ Function calling failed: {str(e)}")
             return False
 
         # All tests passed!

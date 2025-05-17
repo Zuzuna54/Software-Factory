@@ -21,7 +21,7 @@ pydantic-settings==2.1.0
 tenacity==8.2.3
 
 # AI Integration
-google-cloud-aiplatform==1.38.1
+google-generativeai
 langchain==0.1.0
 langchain-core==0.1.10
 

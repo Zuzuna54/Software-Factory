@@ -34,6 +34,7 @@ tenacity = "==8.2.3"
 httpx = "==0.25.0"
 prometheus-client = "==0.17.1"
 google-cloud-storage = "==2.11.0"
+google-generativeai = "*"
 
 [requires]
 python_version = "3.12"
@@ -45,4 +46,4 @@ lint = "flake8 ."
 format = "black ."
 sort = "isort ."
 typecheck = "mypy ."
-quality = "bash -c 'pipenv run format && pipenv run sort && pipenv run lint && pipenv run typecheck'" 
+quality = "bash -c 'pipenv run format && pipenv run sort && pipenv run lint && pipenv run typecheck'"

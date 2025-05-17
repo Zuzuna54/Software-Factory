@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import insert
+from sqlalchemy import select, text
 
 from agents.logging import ActivityLogger, ActivityCategory, ActivityLevel
 
@@ -30,8 +32,36 @@ async def test_logging_system():
 
     try:
         async with async_session() as db_session:
+            # First, register the test agent in the database
+            print("Registering test agent in the database...")
+            from infra.db.models import Agent
+
+            # Check if agent already exists
+            query = text(f"SELECT * FROM agents WHERE agent_id = '{test_id}'")
+            result = await db_session.execute(query)
+            existing_agent = result.first()
+
+            if not existing_agent:
+                # Create agent record
+                agent_data = {
+                    "agent_id": test_id,
+                    "agent_type": "test_agent",
+                    "agent_name": "Test Agent",
+                    "agent_role": "verification",
+                    "capabilities": ["testing"],
+                    "status": "active",
+                    "created_at": datetime.utcnow(),
+                }
+
+                stmt = insert(Agent).values(**agent_data)
+                await db_session.execute(stmt)
+                await db_session.commit()
+                print(f"Test agent created with ID: {test_id}")
+            else:
+                print(f"Test agent already exists with ID: {test_id}")
+
             # Initialize the logger
-            print("Initializing activity logger...")
+            print("\nInitializing activity logger...")
             logger = ActivityLogger(
                 agent_id=test_id,
                 agent_name="Test Agent",
@@ -45,10 +75,8 @@ async def test_logging_system():
             basic_start = time.time()
             activity_id = await logger.log_activity(
                 activity_type="test_activity",
-                description="Testing basic activity logging",
-                category=ActivityCategory.SYSTEM,
-                level=ActivityLevel.INFO,
-                details={"test": True, "timestamp": datetime.utcnow().isoformat()},
+                description="Testing the activity logger",
+                input_data={"test": True, "timestamp": datetime.utcnow().isoformat()},
             )
             basic_duration = time.time() - basic_start
 
@@ -235,7 +263,10 @@ async def test_logging_system():
             # 10. Clean up test data
             print("\nCleaning up test data...")
             await db_session.execute(
-                f"DELETE FROM agent_activities WHERE agent_id = '{test_id}'"
+                text(f"DELETE FROM agent_activities WHERE agent_id = '{test_id}'")
+            )
+            await db_session.execute(
+                text(f"DELETE FROM agents WHERE agent_id = '{test_id}'")
             )
             await db_session.commit()
 

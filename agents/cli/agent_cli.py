@@ -349,7 +349,8 @@ class AgentCLI:
         )
 
         if self.current_conversation:
-            return await self.current_conversation.add_message(message) and message
+            success = await self.current_conversation.add_message(message)
+            return message if success else None
 
         success = await self.protocol.send_message(message)
         return message if success else None
@@ -384,7 +385,8 @@ class AgentCLI:
         )
 
         if self.current_conversation:
-            return await self.current_conversation.add_message(message) and message
+            success = await self.current_conversation.add_message(message)
+            return message if success else None
 
         success = await self.protocol.send_message(message)
         return message if success else None
@@ -425,7 +427,8 @@ class AgentCLI:
         )
 
         if self.current_conversation:
-            return await self.current_conversation.add_message(message) and message
+            success = await self.current_conversation.add_message(message)
+            return message if success else None
 
         success = await self.protocol.send_message(message)
         return message if success else None
@@ -463,7 +466,8 @@ class AgentCLI:
         )
 
         if self.current_conversation:
-            return await self.current_conversation.add_message(message) and message
+            success = await self.current_conversation.add_message(message)
+            return message if success else None
 
         success = await self.protocol.send_message(message)
         return message if success else None
@@ -504,7 +508,8 @@ class AgentCLI:
         )
 
         if self.current_conversation:
-            return await self.current_conversation.add_message(message) and message
+            success = await self.current_conversation.add_message(message)
+            return message if success else None
 
         success = await self.protocol.send_message(message)
         return message if success else None
@@ -887,9 +892,9 @@ async def run_simulation(cli: AgentCLI, scenario: str) -> None:
     print(f"Running {scenario} simulation...")
 
     if scenario == "basic":
-        # Create agents
-        agent1_id = cli.create_agent(name="Planner Agent")
-        agent2_id = cli.create_agent(name="Executor Agent")
+        # Create agents with valid UUIDs
+        agent1_id = cli.create_agent(agent_id=str(uuid.uuid4()), name="Planner Agent")
+        agent2_id = cli.create_agent(agent_id=str(uuid.uuid4()), name="Executor Agent")
 
         # Create conversation
         conversation_id = cli.create_conversation(topic="Basic Interaction")
@@ -903,14 +908,23 @@ async def run_simulation(cli: AgentCLI, scenario: str) -> None:
             priority=4,
         )
 
-        # Send a response
-        await cli.send_inform(
-            sender_id=agent2_id,
-            recipient_id=agent1_id,
-            information_type="result",
-            data={"processed": 100, "filtered": 75},
-            in_reply_to=request.message_id,
-        )
+        # Send a response (only if request was successful)
+        if request:
+            await cli.send_inform(
+                sender_id=agent2_id,
+                recipient_id=agent1_id,
+                information_type="result",
+                data={"processed": 100, "filtered": 75},
+                in_reply_to=request.message_id,
+            )
+        else:
+            # Send without in_reply_to if request failed
+            await cli.send_inform(
+                sender_id=agent2_id,
+                recipient_id=agent1_id,
+                information_type="result",
+                data={"processed": 100, "filtered": 75},
+            )
 
         # Send an alert
         await cli.send_alert(
@@ -926,17 +940,22 @@ async def run_simulation(cli: AgentCLI, scenario: str) -> None:
         messages = await cli.get_conversation_messages(conversation_id)
         print(f"\nSimulation completed with {len(messages)} messages")
 
-        # Show context window
-        context = cli.current_conversation.get_context()
-        print(f"\nContext Window ({len(context)} messages):")
-        for message in context:
-            print(f"  - {message}")
+        # Show context window if available
+        if cli.current_conversation:
+            context = cli.current_conversation.get_context()
+            print(f"\nContext Window ({len(context)} messages):")
+            for message in context:
+                print(f"  - {message}")
+        else:
+            print("\nNo context window available")
 
     elif scenario == "planning":
-        # Create agents
-        planner_id = cli.create_agent(name="Planner Agent")
-        analyst_id = cli.create_agent(name="Analyst Agent")
-        executor_id = cli.create_agent(name="Executor Agent")
+        # Create agents with valid UUIDs
+        planner_id = cli.create_agent(agent_id=str(uuid.uuid4()), name="Planner Agent")
+        analyst_id = cli.create_agent(agent_id=str(uuid.uuid4()), name="Analyst Agent")
+        executor_id = cli.create_agent(
+            agent_id=str(uuid.uuid4()), name="Executor Agent"
+        )
 
         # Create conversation
         conversation_id = cli.create_conversation(topic="Project Planning")
@@ -953,67 +972,87 @@ async def run_simulation(cli: AgentCLI, scenario: str) -> None:
             reasoning="Based on project requirements and resource availability",
         )
 
-        # Analyst reviews plan
-        confirmation = await cli.send_confirm(
-            sender_id=analyst_id,
-            recipient_id=planner_id,
-            confirmation_type="plan_review",
-            confirmed_item_id=proposal.message_id,
-            comments="Plan looks good, but we need to add a validation step",
-        )
+        # Continue only if proposal was sent successfully
+        if proposal:
+            # Analyst reviews plan
+            confirmation = await cli.send_confirm(
+                sender_id=analyst_id,
+                recipient_id=planner_id,
+                confirmation_type="plan_review",
+                confirmed_item_id=proposal.message_id,
+                comments="Plan looks good, but we need to add a validation step",
+            )
 
-        # Planner updates plan
-        revised_proposal = await cli.send_propose(
-            sender_id=planner_id,
-            recipient_id=analyst_id,
-            proposal_type="revised_project_plan",
-            proposal={
-                "steps": [
-                    "Data collection",
-                    "Analysis",
-                    "Implementation",
-                    "Validation",
-                    "Testing",
-                ],
-                "timeline": "2.5 weeks",
-            },
-            reasoning="Added validation step as requested",
-            in_reply_to=confirmation.message_id,
-        )
+            # Continue only if confirmation was sent successfully
+            if confirmation:
+                # Planner updates plan
+                revised_proposal = await cli.send_propose(
+                    sender_id=planner_id,
+                    recipient_id=analyst_id,
+                    proposal_type="revised_project_plan",
+                    proposal={
+                        "steps": [
+                            "Data collection",
+                            "Analysis",
+                            "Implementation",
+                            "Validation",
+                            "Testing",
+                        ],
+                        "timeline": "2.5 weeks",
+                    },
+                    reasoning="Added validation step as requested",
+                    in_reply_to=confirmation.message_id,
+                )
 
-        # Analyst approves revised plan
-        await cli.send_confirm(
-            sender_id=analyst_id,
-            recipient_id=planner_id,
-            confirmation_type="plan_approval",
-            confirmed_item_id=revised_proposal.message_id,
-            comments="Revised plan approved",
-        )
+                # Continue only if revised proposal was sent successfully
+                if revised_proposal:
+                    # Analyst approves revised plan
+                    approval = await cli.send_confirm(
+                        sender_id=analyst_id,
+                        recipient_id=planner_id,
+                        confirmation_type="plan_approval",
+                        confirmed_item_id=revised_proposal.message_id,
+                        comments="Revised plan approved",
+                    )
 
-        # Planner assigns tasks to executor
-        await cli.send_request(
-            sender_id=planner_id,
-            recipient_id=executor_id,
-            action="implement_plan",
-            parameters={"plan_id": revised_proposal.message_id},
-            priority=5,
-        )
+                    # Continue only if approval was sent successfully
+                    if approval:
+                        # Planner assigns tasks to executor
+                        await cli.send_request(
+                            sender_id=planner_id,
+                            recipient_id=executor_id,
+                            action="implement_plan",
+                            parameters={"plan_id": revised_proposal.message_id},
+                            priority=5,
+                        )
 
         # Show results
         messages = await cli.get_conversation_messages(conversation_id)
         print(f"\nSimulation completed with {len(messages)} messages")
 
-        # Show thread structure
-        thread = await cli.current_conversation.get_thread(proposal.message_id)
-        print(f"\nThread for initial proposal ({len(thread['replies'])} replies):")
-        for message in thread["replies"]:
-            print(f"  - {message}")
+        # Show thread structure if proposal exists and conversation exists
+        if proposal and cli.current_conversation:
+            try:
+                thread = await cli.current_conversation.get_thread(proposal.message_id)
+                print(
+                    f"\nThread for initial proposal ({len(thread['replies'])} replies):"
+                )
+                for message in thread["replies"]:
+                    print(f"  - {message}")
+            except Exception as e:
+                print(f"\nCould not get thread: {str(e)}")
+        else:
+            print("\nNo thread information available")
 
     elif scenario == "problem-solving":
-        # Create agents
-        detector_id = cli.create_agent(name="Problem Detector")
-        analyzer_id = cli.create_agent(name="Problem Analyzer")
-        solver_id = cli.create_agent(name="Problem Solver")
+        # Create agents with valid UUIDs
+        detector_id = cli.create_agent(
+            agent_id=str(uuid.uuid4()), name="Problem Detector"
+        )
+        analyzer_id = cli.create_agent(
+            agent_id=str(uuid.uuid4()), name="Problem Analyzer"
+        )
+        solver_id = cli.create_agent(agent_id=str(uuid.uuid4()), name="Problem Solver")
 
         # Create conversation
         conversation_id = cli.create_conversation(topic="Problem Solving")
@@ -1028,87 +1067,99 @@ async def run_simulation(cli: AgentCLI, scenario: str) -> None:
             suggested_actions=["check connection pool", "review recent changes"],
         )
 
-        # Analyzer requests more information
-        info_request = await cli.send_request(
-            sender_id=analyzer_id,
-            recipient_id=detector_id,
-            action="provide_details",
-            parameters={
-                "error_id": alert.message_id,
-                "fields": ["stack_trace", "frequency", "affected_services"],
-            },
-            priority=4,
-            in_reply_to=alert.message_id,
-        )
+        if alert:
+            # Analyzer requests more information
+            info_request = await cli.send_request(
+                sender_id=analyzer_id,
+                recipient_id=detector_id,
+                action="provide_details",
+                parameters={
+                    "error_id": alert.message_id,
+                    "fields": ["stack_trace", "frequency", "affected_services"],
+                },
+                priority=4,
+                in_reply_to=alert.message_id,
+            )
 
-        # Detector provides details
-        details = await cli.send_inform(
-            sender_id=detector_id,
-            recipient_id=analyzer_id,
-            information_type="error_details",
-            data={
-                "stack_trace": "Connection timeout after 30s",
-                "frequency": "Every 5 minutes",
-                "affected_services": ["user-api", "payment-service"],
-            },
-            in_reply_to=info_request.message_id,
-        )
+            if info_request:
+                # Detector provides details
+                details = await cli.send_inform(
+                    sender_id=detector_id,
+                    recipient_id=analyzer_id,
+                    information_type="error_details",
+                    data={
+                        "stack_trace": "Connection timeout after 30s",
+                        "frequency": "Every 5 minutes",
+                        "affected_services": ["user-api", "payment-service"],
+                    },
+                    in_reply_to=info_request.message_id,
+                )
 
-        # Analyzer diagnoses problem
-        diagnosis = await cli.send_inform(
-            sender_id=analyzer_id,
-            recipient_id=solver_id,
-            information_type="problem_diagnosis",
-            data={
-                "root_cause": "Connection pool exhaustion",
-                "evidence": [
-                    "timeout errors",
-                    "high frequency",
-                    "multiple services affected",
-                ],
-                "confidence": 0.85,
-            },
-        )
+                # Proceed only if details were sent successfully
+                if details:
+                    # Analyzer diagnoses problem
+                    diagnosis = await cli.send_inform(
+                        sender_id=analyzer_id,
+                        recipient_id=solver_id,
+                        information_type="problem_diagnosis",
+                        data={
+                            "root_cause": "Connection pool exhaustion",
+                            "evidence": [
+                                "timeout errors",
+                                "high frequency",
+                                "multiple services affected",
+                            ],
+                            "confidence": 0.85,
+                        },
+                    )
 
-        # Solver proposes solution
-        solution = await cli.send_propose(
-            sender_id=solver_id,
-            recipient_id=analyzer_id,
-            proposal_type="solution",
-            proposal={
-                "action": "increase_connection_pool",
-                "parameters": {"new_size": 50, "timeout": 60},
-                "expected_outcome": "Resolve connection failures",
-            },
-            alternatives=[
-                {
-                    "action": "add_connection_retry",
-                    "parameters": {"max_retries": 3, "backoff": "exponential"},
-                    "expected_outcome": "Mitigate intermittent failures",
-                }
-            ],
-            in_reply_to=diagnosis.message_id,
-        )
+                    if diagnosis:
+                        # Solver proposes solution
+                        solution = await cli.send_propose(
+                            sender_id=solver_id,
+                            recipient_id=analyzer_id,
+                            proposal_type="solution",
+                            proposal={
+                                "action": "increase_connection_pool",
+                                "parameters": {"new_size": 50, "timeout": 60},
+                                "expected_outcome": "Resolve connection failures",
+                            },
+                            alternatives=[
+                                {
+                                    "action": "add_connection_retry",
+                                    "parameters": {
+                                        "max_retries": 3,
+                                        "backoff": "exponential",
+                                    },
+                                    "expected_outcome": "Mitigate intermittent failures",
+                                }
+                            ],
+                            in_reply_to=diagnosis.message_id,
+                        )
 
-        # Analyzer approves solution
-        await cli.send_confirm(
-            sender_id=analyzer_id,
-            recipient_id=solver_id,
-            confirmation_type="solution_approval",
-            confirmed_item_id=solution.message_id,
-            comments="Proceed with the recommended solution",
-        )
+                        if solution:
+                            # Analyzer approves solution
+                            await cli.send_confirm(
+                                sender_id=analyzer_id,
+                                recipient_id=solver_id,
+                                confirmation_type="solution_approval",
+                                confirmed_item_id=solution.message_id,
+                                comments="Proceed with the recommended solution",
+                            )
 
         # Show results
         messages = await cli.get_conversation_messages(conversation_id)
         print(f"\nSimulation completed with {len(messages)} messages")
 
         # Show conversation summary
-        summary = await cli.get_conversation_summary(conversation_id)
-        print("\nConversation Summary:")
-        for key, value in summary.items():
-            if key not in ["metadata", "created_at", "last_activity", "duration"]:
-                print(f"  {key}: {value}")
+        try:
+            summary = await cli.get_conversation_summary(conversation_id)
+            print("\nConversation Summary:")
+            for key, value in summary.items():
+                if key not in ["metadata", "created_at", "last_activity", "duration"]:
+                    print(f"  {key}: {value}")
+        except Exception as e:
+            print(f"\nCould not get conversation summary: {str(e)}")
 
 
 def main():

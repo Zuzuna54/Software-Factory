@@ -106,7 +106,18 @@ class BaseAgent:
             await self.db_session.execute(stmt)
             await self.db_session.commit()
 
-            logger.info(f"Agent {self.agent_id} initialized in database")
+            # Log agent creation
+            await self.log_activity(
+                activity_type="agent_created",
+                description=f"Agent {self.agent_name} ({self.agent_type}) created",
+                input_data={
+                    "agent_id": str(self.agent_id),
+                    "agent_type": self.agent_type,
+                    "agent_role": self.agent_role,
+                },
+            )
+
+            logger.info(f"Agent {self.agent_id} created in database")
         except Exception as e:
             await self.db_session.rollback()
             logger.error(f"Error initializing agent in database: {str(e)}")
@@ -130,7 +141,7 @@ class BaseAgent:
             await self.log_activity(
                 activity_type="thinking_started",
                 description=f"Started thinking process with context: {context.get('summary', 'No summary')}",
-                details={
+                input_data={
                     "context_size": len(str(context)),
                     "context_type": context.get("type", "unknown"),
                 },
@@ -152,7 +163,7 @@ class BaseAgent:
             await self.log_activity(
                 activity_type="thinking_completed",
                 description=f"Completed thinking process in {execution_time:.2f}s",
-                details={
+                input_data={
                     "execution_time_ms": int(execution_time * 1000),
                     "decision": result.get("decision"),
                 },
@@ -164,7 +175,7 @@ class BaseAgent:
             await self.log_activity(
                 activity_type="thinking_error",
                 description=f"Error during thinking process: {str(e)}",
-                details={
+                input_data={
                     "error": str(e),
                     "execution_time_ms": int(execution_time * 1000),
                     "traceback": logging.traceback.format_exc(),
@@ -227,7 +238,7 @@ class BaseAgent:
             await self.log_activity(
                 activity_type="message_sent",
                 description=f"Sent {message_type} message to agent {receiver_id}",
-                details={
+                input_data={
                     "message_id": str(message_id),
                     "receiver_id": str(receiver_id),
                     "message_type": message_type,
@@ -286,7 +297,7 @@ class BaseAgent:
             await self.log_activity(
                 activity_type="message_received",
                 description=f"Received {message.message_type} message from agent {message.sender_id}",
-                details={
+                input_data={
                     "message_id": str(message_id),
                     "sender_id": str(message.sender_id),
                     "message_type": message.message_type,
@@ -311,7 +322,7 @@ class BaseAgent:
             await self.log_activity(
                 activity_type="message_error",
                 description=f"Error processing message {message_id}",
-                details={"error": str(e)},
+                input_data={"error": str(e)},
             )
 
             return {"success": False, "error": str(e)}
@@ -320,7 +331,7 @@ class BaseAgent:
         self,
         activity_type: str,
         description: str,
-        details: Optional[Dict[str, Any]] = None,
+        input_data: Optional[Dict[str, Any]] = None,
     ) -> uuid.UUID:
         """
         Log an agent activity to the database.
@@ -328,7 +339,7 @@ class BaseAgent:
         Args:
             activity_type: Type of activity being logged
             description: Human-readable description of the activity
-            details: Additional structured details about the activity
+            input_data: Additional structured details about the activity
 
         Returns:
             UUID of the created activity record
@@ -348,7 +359,7 @@ class BaseAgent:
                 "timestamp": timestamp,
                 "activity_type": activity_type,
                 "description": description,
-                "details": details or {},
+                "input_data": input_data or {},
             }
 
             stmt = insert(AgentActivity).values(**activity_data)

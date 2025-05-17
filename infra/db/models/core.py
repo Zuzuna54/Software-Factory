@@ -148,7 +148,12 @@ class AgentActivity(Base):
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     activity_type = Column(String(100), nullable=False)
     description = Column(Text, nullable=False)
-    details = Column(JSONB, nullable=True)
+    thought_process = Column(Text, nullable=True)
+    input_data = Column(JSONB, nullable=True)
+    output_data = Column(JSONB, nullable=True)
+    related_files = Column(ARRAY(String), nullable=True)
+    decisions_made = Column(JSONB, nullable=True)
+    execution_time_ms = Column(Integer, nullable=True)
 
     # Relationships
     agent = relationship("Agent", back_populates="activities")

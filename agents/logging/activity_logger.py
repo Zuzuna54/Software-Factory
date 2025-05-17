@@ -144,41 +144,24 @@ class ActivityLogger:
         timestamp = datetime.utcnow()
 
         # Compile all details for the log record
-        full_details = details or {}
+        activity_input_data = input_data or {}
+        if details:
+            # If details is provided for backward compatibility, merge it into input_data
+            activity_input_data.update(details)
 
         # Add session tracking
-        full_details["session_id"] = str(self.session_id)
-        full_details["session_duration_s"] = (
+        activity_input_data["session_id"] = str(self.session_id)
+        activity_input_data["session_duration_s"] = (
             timestamp - self.session_start_time
         ).total_seconds()
 
         # Add additional data if provided
-        if thought_process:
-            full_details["thought_process"] = thought_process
-
-        if input_data:
-            full_details["input_data"] = input_data
-
-        if output_data:
-            full_details["output_data"] = output_data
-
-        if related_files:
-            full_details["related_files"] = related_files
-
-        if decisions_made:
-            full_details["decisions_made"] = decisions_made
-            # Add to decisions history
-            self.decisions.extend(decisions_made)
-
-        if execution_time_ms is not None:
-            full_details["execution_time_ms"] = execution_time_ms
-
         if tags:
-            full_details["tags"] = tags
+            activity_input_data["tags"] = tags
 
         # Log to Python logger first (always happens, even without DB)
         self._log_to_std_logger(
-            activity_type, description, category, level, full_details
+            activity_type, description, category, level, activity_input_data
         )
 
         # If no database session, we're done after standard logging
@@ -189,15 +172,23 @@ class ActivityLogger:
         activity_id = uuid.uuid4()
 
         try:
-            # Create an AgentActivity instance instead of raw insert
-            activity = AgentActivity(
-                activity_id=activity_id,
-                agent_id=self.agent_id,
-                timestamp=timestamp,
-                activity_type=activity_type,
-                description=description,
-                details=full_details,
-            )
+            # Create an AgentActivity instance using the correct field names
+            activity_data = {
+                "activity_id": activity_id,
+                "agent_id": self.agent_id,
+                "timestamp": timestamp,
+                "activity_type": activity_type,
+                "description": description,
+                "thought_process": thought_process,
+                "input_data": activity_input_data,
+                "output_data": output_data,
+                "related_files": related_files,
+                "decisions_made": decisions_made,
+                "execution_time_ms": execution_time_ms,
+            }
+
+            # Create an AgentActivity instance
+            activity = AgentActivity(**activity_data)
 
             # Add to session and commit
             self.db_session.add(activity)
@@ -290,25 +281,25 @@ class ActivityLogger:
         Log an error or exception.
 
         Args:
-            error_type: Type of error (e.g., "database_error", "api_error")
-            description: Human-readable description of the error
-            exception: The exception object, if available
-            severity: Error severity level
-            context: Additional context about what was happening when the error occurred
-            recovery_action: Description of how the error was or will be handled
+            error_type: Type/category of error
+            description: Human-readable error description
+            exception: Exception object if available
+            severity: Severity level of the error
+            context: Context in which the error occurred
+            recovery_action: Description of recovery action taken (if any)
 
         Returns:
             UUID of the created activity record if stored in DB, None otherwise
         """
-        details = context or {}
+        input_data = context or {}
 
         if exception:
-            details["error_message"] = str(exception)
-            details["error_type"] = exception.__class__.__name__
-            details["traceback"] = traceback.format_exc()
+            input_data["error_message"] = str(exception)
+            input_data["error_type"] = exception.__class__.__name__
+            input_data["traceback"] = traceback.format_exc()
 
         if recovery_action:
-            details["recovery_action"] = recovery_action
+            input_data["recovery_action"] = recovery_action
 
         # Avoid infinite recursion with log_activity
         # First, try standard logging
@@ -317,7 +308,7 @@ class ActivityLogger:
             description,
             ActivityCategory.ERROR,
             severity,
-            details,
+            input_data,
         )
 
         # If we don't have a database session, we're done
@@ -336,7 +327,7 @@ class ActivityLogger:
                 timestamp=timestamp,
                 activity_type=error_type,
                 description=description,
-                details=details,
+                input_data=input_data,
             )
 
             # Add to session and commit
@@ -421,7 +412,7 @@ class ActivityLogger:
                 description=f"Performance timing for {operation_name}: {duration_ms}ms",
                 category=ActivityCategory.PERFORMANCE,
                 level=ActivityLevel.DEBUG,
-                details=performance_data,
+                input_data=performance_data,
                 execution_time_ms=duration_ms,
                 tags=["performance", "timing", operation_name],
             )
@@ -473,7 +464,7 @@ class ActivityLogger:
             activity_type=f"communication_{message_type}",
             description=f"{message_type.capitalize()} from {sender_id} to {recipient_id}: {content_summary[:50]}{'...' if len(content_summary) > 50 else ''}",
             category=ActivityCategory.COMMUNICATION,
-            details=comm_data,
+            input_data=comm_data,
             tags=["communication", message_type],
         )
 
@@ -501,6 +492,7 @@ class ActivityLogger:
             UUID of the created activity record if stored in DB, None otherwise
         """
         thinking_data = {
+            "reasoning": reasoning,
             "input_context": input_context,
         }
 
@@ -508,16 +500,14 @@ class ActivityLogger:
             thinking_data["conclusion"] = conclusion
 
         if intermediate_steps:
-            thinking_data["intermediate_steps"] = intermediate_steps
+            thinking_data["steps"] = intermediate_steps
 
         return await self.log_activity(
             activity_type=f"thinking_{thought_type}",
             description=description,
             category=ActivityCategory.THINKING,
             thought_process=reasoning,
-            input_data=input_context,
-            output_data={"conclusion": conclusion} if conclusion else None,
-            details=thinking_data,
+            input_data=thinking_data,
             tags=["thinking", thought_type],
         )
 
@@ -573,7 +563,7 @@ class ActivityLogger:
             filtered_activities = []
 
             for activity in activities:
-                details = activity.details or {}
+                input_data = activity.input_data or {}
 
                 # Filter by activity types
                 if activity_types and activity.activity_type not in activity_types:
@@ -581,7 +571,7 @@ class ActivityLogger:
 
                 # Filter by categories
                 if categories:
-                    activity_category = details.get("category")
+                    activity_category = input_data.get("category")
                     if not activity_category or activity_category not in [
                         c.value for c in categories
                     ]:
@@ -589,7 +579,7 @@ class ActivityLogger:
 
                 # Filter by minimum level
                 if min_level:
-                    activity_level = details.get("level")
+                    activity_level = input_data.get("level")
                     if not activity_level or self._level_value(
                         ActivityLevel(activity_level)
                     ) < self._level_value(min_level):
@@ -597,7 +587,7 @@ class ActivityLogger:
 
                 # Filter by tags
                 if tags:
-                    activity_tags = details.get("tags", [])
+                    activity_tags = input_data.get("tags", [])
                     if not all(tag in activity_tags for tag in tags):
                         continue
 
@@ -608,7 +598,12 @@ class ActivityLogger:
                     "timestamp": activity.timestamp,
                     "activity_type": activity.activity_type,
                     "description": activity.description,
-                    "details": activity.details,
+                    "thought_process": activity.thought_process,
+                    "input_data": activity.input_data,
+                    "output_data": activity.output_data,
+                    "related_files": activity.related_files,
+                    "decisions_made": activity.decisions_made,
+                    "execution_time_ms": activity.execution_time_ms,
                 }
 
                 filtered_activities.append(activity_dict)
@@ -642,16 +637,16 @@ class ActivityLogger:
             SELECT 
                 activity_type,
                 COUNT(*) as operation_count,
-                AVG((details->>'execution_time_ms')::float) as avg_time_ms,
-                MIN((details->>'execution_time_ms')::float) as min_time_ms,
-                MAX((details->>'execution_time_ms')::float) as max_time_ms,
-                SUM(CASE WHEN details->>'success' = 'true' THEN 1 ELSE 0 END) as success_count,
-                SUM(CASE WHEN details->>'success' = 'false' THEN 1 ELSE 0 END) as failure_count
+                AVG((input_data->>'execution_time_ms')::float) as avg_time_ms,
+                MIN((input_data->>'execution_time_ms')::float) as min_time_ms,
+                MAX((input_data->>'execution_time_ms')::float) as max_time_ms,
+                SUM(CASE WHEN input_data->>'success' = 'true' THEN 1 ELSE 0 END) as success_count,
+                SUM(CASE WHEN input_data->>'success' = 'false' THEN 1 ELSE 0 END) as failure_count
             FROM 
                 agent_activities
             WHERE 
                 agent_id = :agent_id
-                AND (details->>'execution_time_ms') IS NOT NULL
+                AND (input_data->>'execution_time_ms') IS NOT NULL
             """
 
             params = {"agent_id": str(self.agent_id)}
@@ -711,43 +706,37 @@ class ActivityLogger:
         details: Dict[str, Any],
     ) -> None:
         """
-        Log to standard Python logger as a fallback/supplement to DB logging.
+        Log to the standard Python logger.
 
         Args:
             activity_type: Type of activity
-            description: Activity description
+            description: Human-readable description
             category: Activity category
-            level: Activity level
-            details: Activity details
+            level: Severity/importance level
+            details: Additional structured details
         """
-        # Map activity level to Python logging level
-        log_level = logging.INFO
-        if level == ActivityLevel.DEBUG:
-            log_level = logging.DEBUG
-        elif level == ActivityLevel.WARNING:
-            log_level = logging.WARNING
-        elif level == ActivityLevel.ERROR:
-            log_level = logging.ERROR
-        elif level == ActivityLevel.CRITICAL:
-            log_level = logging.CRITICAL
+        # Skip if below minimum level
+        if self._level_value(level) < self._level_value(self.min_level):
+            return
 
-        # Format the log message
-        agent_str = f"[{self.agent_name or self.agent_id or 'Unknown Agent'}]"
-        category_str = f"[{category.value}]"
-        type_str = f"[{activity_type}]"
+        log_func = getattr(logger, level.value)
 
-        # Log the message with structured info
-        logger.log(log_level, f"{agent_str} {category_str} {type_str} {description}")
+        # Construct log message
+        agent_prefix = f"[{self.agent_name or 'Anonymous'}] " if self.agent_name else ""
+        message = (
+            f"{agent_prefix}{category.value.upper()}/{activity_type}: {description}"
+        )
 
-        # Log details at debug level if they exist and we're not already at debug level
-        if details and level != ActivityLevel.DEBUG:
-            try:
-                details_str = json.dumps(details, indent=2)
-                logger.debug(f"Details for {activity_type}: {details_str}")
-            except (TypeError, ValueError):
-                logger.debug(
-                    f"Details for {activity_type}: {details} (not JSON serializable)"
-                )
+        # Add extra context for structured logging
+        extra = {
+            "agent_id": str(self.agent_id) if self.agent_id else None,
+            "activity_type": activity_type,
+            "category": category.value,
+            "level": level.value,
+        }
+
+        # Log with details as extra context
+        log_func(message, extra=extra)
 
     def _level_value(self, level: ActivityLevel) -> int:
         """
