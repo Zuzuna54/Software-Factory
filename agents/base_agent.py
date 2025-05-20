@@ -12,28 +12,32 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert
 
-from agents.llm.vertex_gemini_provider import VertexGeminiProvider
+from .llm.vertex_gemini_provider import VertexGeminiProvider
 
 # Added imports for VectorMemory integration
-from agents.memory.vector_memory import VectorMemory, MemoryItem
+from .memory.vector_memory import VectorMemory, MemoryItem
 
 # Added imports for ActivityLogger integration
-from agents.logging.activity_logger import (
+from .logging.activity_logger import (
     ActivityLogger,
     ActivityCategory,
     ActivityLevel,
 )
 
 # Added imports for Communication integration
-from agents.communication.protocol import Protocol
-from agents.communication.message import Message, MessageType
+from .communication import (
+    Protocol,
+    Message,
+)
 
 # Import for the refactored function
-from agents.base_agent_functions.store_memory_item import store_memory_item_logic
-from agents.base_agent_functions.retrieve_memories import retrieve_memories_logic
-from agents.base_agent_functions.think import think_logic
-from agents.base_agent_functions.send_message import send_message_logic
-from agents.base_agent_functions.receive_message import receive_message_logic
+from .base_agent_functions import (
+    store_memory_item_logic,
+    retrieve_memories_logic,
+    think_logic,
+    send_message_logic,
+    receive_message_logic,
+)
 
 from agents.db.postgres import PostgresClient
 

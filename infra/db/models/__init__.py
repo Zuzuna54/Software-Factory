@@ -16,6 +16,7 @@ from .core import (
 from .artifacts import (
     Artifact,
     RequirementsArtifact,
+    UserStoryArtifact,
     DesignArtifact,
     ImplementationArtifact,
     TestingArtifact,
@@ -41,6 +42,7 @@ __all__ = [
     # Artifact models
     "Artifact",
     "RequirementsArtifact",
+    "UserStoryArtifact",
     "DesignArtifact",
     "ImplementationArtifact",
     "TestingArtifact",
