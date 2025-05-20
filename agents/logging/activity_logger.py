@@ -719,24 +719,31 @@ class ActivityLogger:
         if self._level_value(level) < self._level_value(self.min_level):
             return
 
-        log_func = getattr(logger, level.value)
+        log_level = getattr(logging, level.value.upper(), logging.INFO)
+        log_message = f"[{self.agent_name or 'System'}/{activity_type}] {description}"
+        # Include details in the log message if they exist
+        if details:
+            # Special handling for our debug logs to ensure visibility
+            if (
+                activity_type == "debug_llm_generated_text"
+                and "generated_text" in details
+            ):
+                gt = details.get("generated_text")
+                log_message += f" -- LLM_RAW_TEXT: {str(gt)[:500]}{'...' if gt and len(gt) > 500 else ''}"
+            elif (
+                activity_type == "debug_vision_content_before_save"
+                and "statement_to_be_saved" in details
+            ):
+                sts = details.get("statement_to_be_saved")
+                log_message += f" -- VISION_STMT_TO_SAVE: {str(sts)[:500]}{'...' if sts and len(sts) > 500 else ''}"
+            else:
+                try:
+                    details_json = json.dumps(details, default=str)
+                    log_message += f" -- Details: {details_json}"
+                except Exception as e:
+                    log_message += f" -- Details: [Error serializing details: {e}]"
 
-        # Construct log message
-        agent_prefix = f"[{self.agent_name or 'Anonymous'}] " if self.agent_name else ""
-        message = (
-            f"{agent_prefix}{category.value.upper()}/{activity_type}: {description}"
-        )
-
-        # Add extra context for structured logging
-        extra = {
-            "agent_id": str(self.agent_id) if self.agent_id else None,
-            "activity_type": activity_type,
-            "category": category.value,
-            "level": level.value,
-        }
-
-        # Log with details as extra context
-        log_func(message, extra=extra)
+        logger.log(log_level, log_message)
 
     def _level_value(self, level: ActivityLevel) -> int:
         """

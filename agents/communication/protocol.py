@@ -9,10 +9,9 @@ import json
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Set, Type, Union, cast
 
-from sqlalchemy import select, func, desc, insert, text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, desc
 
-from infra.db.models import AgentMessage, Agent
+from infra.db.models import AgentMessage, Agent, Conversation as ConversationModel
 from agents.db import PostgresClient
 from .message import Message, MessageType
 
@@ -50,42 +49,68 @@ class Protocol:
         self.registered_agents: Set[str] = set()
         self.logger = logger
 
-    def register_agent(
-        self, agent_id: str, agent_type: str = "test", agent_name: str = "Test Agent"
+    async def register_agent(
+        self,
+        agent_id: str,
+        agent_type: str = "test",
+        agent_name: str = "Test Agent",
+        agent_role: Optional[str] = None,
+        capabilities: Optional[List[str]] = None,
+        system_prompt: Optional[str] = None,
+        extra_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
-        Register an agent with the protocol.
+        Register an agent with the protocol and ensure it exists in the database.
 
         Args:
             agent_id: ID of the agent to register
             agent_type: Type of the agent
             agent_name: Name of the agent
+            agent_role: Role of the agent
+            capabilities: List of agent capabilities
+            system_prompt: System prompt for the agent
+            extra_data: Additional agent-specific configuration
         """
         self.registered_agents.add(agent_id)
-        self.logger.info(f"Agent {agent_id} registered with the protocol")
+        self.logger.info(
+            f"Agent {agent_id} ({agent_name}) registered with the protocol instance."
+        )
 
-        # Create a record in the agents table using SQLAlchemy ORM
+        # Create or verify a record in the agents table using SQLAlchemy ORM
         try:
-            from infra.db.models import Agent
 
-            async def _create_agent():
+            # Define the agent creation logic directly or within an awaited async helper
+            # For clarity, keeping _create_agent helper but it will be awaited.
+            async def _create_agent_in_db():
                 try:
-                    # Create Agent instance with the updated database schema fields
-                    agent = Agent(
+                    # Use provided details or sensible defaults
+                    db_agent_role = agent_role if agent_role else agent_type
+                    db_capabilities = (
+                        {"capabilities": capabilities}
+                        if capabilities
+                        else {"capabilities": []}
+                    )
+                    db_system_prompt = (
+                        system_prompt
+                        if system_prompt
+                        else f"You are {agent_name}, a {agent_type} agent."
+                    )
+                    db_extra_data = extra_data if extra_data else {}
+
+                    agent_record = Agent(
                         agent_id=uuid.UUID(agent_id),
                         agent_type=agent_type,
                         agent_name=agent_name,
-                        agent_role=agent_type,  # Use agent_type as role by default
-                        capabilities={
-                            "capabilities": []
-                        },  # JSONB format for capabilities
-                        status="active",
-                        system_prompt=f"You are {agent_name}, a {agent_type} agent.",
-                        extra_data={},
+                        agent_role=db_agent_role,
+                        capabilities=db_capabilities,
+                        status="active",  # Default status
+                        system_prompt=db_system_prompt,
+                        extra_data=db_extra_data,
+                        # created_at is default now() in model
+                        # last_seen_at can be updated separately
                     )
 
-                    async with self.db_client.transaction() as session:
-                        # Check if agent already exists
+                    async with self.db_client.transaction() as session:  # Use the client's session manager
                         stmt = select(Agent).where(
                             Agent.agent_id == uuid.UUID(agent_id)
                         )
@@ -93,21 +118,35 @@ class Protocol:
                         existing_agent = result.scalar_one_or_none()
 
                         if not existing_agent:
-                            session.add(agent)
+                            session.add(agent_record)
+                            await session.flush()  # Ensure ID is available if needed, and record is persisted
                             self.logger.info(
-                                f"Agent {agent_id} record created in database"
+                                f"Agent {agent_id} record CREATED in database by protocol."
                             )
                         else:
+                            # Optionally update existing agent if details differ
+                            # For now, just log that it exists.
+                            # Consider adding update logic if agent details can change via registration.
                             self.logger.info(
-                                f"Agent {agent_id} already exists in database"
+                                f"Agent {agent_id} ALREADY EXISTS in database. Protocol registration confirmed."
                             )
                 except Exception as inner_e:
-                    self.logger.error(f"Error in _create_agent: {str(inner_e)}")
+                    self.logger.error(
+                        f"Error in _create_agent_in_db for {agent_id}: {str(inner_e)}",
+                        exc_info=True,
+                    )
+                    raise  # Re-raise to be caught by the outer try-except
 
-            # Since register_agent is not async, we need to create a task to run the async code
-            asyncio.create_task(_create_agent())
+            await _create_agent_in_db()  # Await the database operation
+
         except Exception as e:
-            self.logger.error(f"Error creating agent {agent_id} in database: {str(e)}")
+            self.logger.error(
+                f"Error ensuring agent {agent_id} in database via protocol: {str(e)}",
+                exc_info=True,
+            )
+            # Decide if this failure should prevent agent registration with the protocol instance
+            # For now, it registers with the protocol instance first, then attempts DB.
+            # If DB fails, agent is still "known" to this protocol instance but not in DB via this call.
 
     def unregister_agent(self, agent_id: str) -> None:
         """
@@ -446,26 +485,95 @@ class Protocol:
             if isinstance(content, dict):
                 content = json.dumps(content)
 
-            # Store the conversation_id in the extra_data field
-            # so we can retrieve messages by conversation
             metadata = message.metadata.copy() if message.metadata else {}
-            metadata["conversation_id"] = message.conversation_id
+            metadata["conversation_id"] = (
+                message.conversation_id
+            )  # Ensure it's in metadata for _record_to_message logic
 
-            # Create a new AgentMessage record - map to existing columns
-            # Omit related_task_id to avoid foreign key constraint violation
+            # Log types of ID fields from Pydantic Message just before SQLAlchemy model instantiation
+            self.logger.debug(
+                f"Persisting message. ID types before UUID conversion: "
+                f"message_id: {type(message.message_id)}, "
+                f"sender_id: {type(message.sender_id)}, "
+                f"recipient_id: {type(message.recipient_id)}, "
+                f"task_id: {type(message.task_id)}, "
+                f"meeting_id: {type(message.meeting_id)}, "
+                f"in_reply_to: {type(message.in_reply_to)}, "
+                f"conversation_id: {type(message.conversation_id)}"
+            )
+
+            # Helper to convert string to UUID if not None
+            def to_uuid(id_str: Optional[str]) -> Optional[uuid.UUID]:
+                if id_str is None:
+                    return None
+                if isinstance(id_str, uuid.UUID):  # If it's already a UUID, return it
+                    return id_str
+                if isinstance(id_str, str):
+                    try:
+                        return uuid.UUID(id_str)
+                    except ValueError:
+                        self.logger.error(
+                            f"Invalid string for UUID conversion: {id_str}"
+                        )
+                        return None  # Or raise an error, or handle as appropriate
+                self.logger.warning(
+                    f"Unexpected type for UUID conversion: {type(id_str)}, value: {id_str}"
+                )
+                return None
+
             agent_message = AgentMessage(
-                message_id=uuid.UUID(message.message_id),
-                sender_id=uuid.UUID(message.sender_id),
-                receiver_id=uuid.UUID(message.recipient_id),  # Use receiver_id field
+                message_id=to_uuid(
+                    message.message_id
+                ),  # Pydantic Message.message_id should be str
+                created_at=message.created_at,  # Pydantic Message.created_at is datetime
+                sender_id=to_uuid(
+                    message.sender_id
+                ),  # Pydantic Message.sender_id should be str
+                receiver_id=to_uuid(
+                    message.recipient_id
+                ),  # Pydantic Message.recipient_id should be str
                 message_type=message.message_type.value,
                 content=content,
-                parent_message_id=(
-                    uuid.UUID(message.in_reply_to) if message.in_reply_to else None
-                ),
-                extra_data=metadata,
+                related_task_id=to_uuid(
+                    message.task_id
+                ),  # Pydantic Message.task_id is Optional[str]
+                metadata=metadata,
+                parent_message_id=to_uuid(
+                    message.in_reply_to
+                ),  # Pydantic Message.in_reply_to is Optional[str]
+                context_vector=message.context_vector,  # Pydantic Message.context_vector is Optional[List[float]]
+                extra_data=metadata,  # Reusing metadata here as AgentMessage.extra_data
+                meeting_id=to_uuid(
+                    message.meeting_id
+                ),  # Pydantic Message.meeting_id is Optional[str]
+                conversation_id=to_uuid(
+                    message.conversation_id
+                ),  # Pydantic Message.conversation_id is Optional[str]
             )
 
             async with self.db_client.transaction() as session:
+                # Ensure Conversation record exists if message.conversation_id is set
+                if (
+                    agent_message.conversation_id
+                ):  # This is now a UUID object from to_uuid
+                    conv_stmt = select(ConversationModel).where(
+                        ConversationModel.conversation_id
+                        == agent_message.conversation_id
+                    )
+                    existing_conv = (
+                        await session.execute(conv_stmt)
+                    ).scalar_one_or_none()
+                    if not existing_conv:
+                        # The import for ConversationModel is now at the top of the file
+                        # No need for: from infra.db.models.core import Conversation as ConversationModel
+                        new_conv = ConversationModel(
+                            conversation_id=agent_message.conversation_id,
+                        )
+                        session.add(new_conv)
+                        self.logger.info(
+                            f"Created new Conversation record for ID: {agent_message.conversation_id} during message persistence."
+                        )
+
                 session.add(agent_message)
 
             self.logger.info(f"Message persisted: {message.message_id}")
@@ -526,6 +634,9 @@ class Protocol:
                 ),
                 metadata=record.extra_data or {},
                 created_at=record.created_at or datetime.utcnow(),
+                task_id=str(record.related_task_id) if record.related_task_id else None,
+                meeting_id=str(record.meeting_id) if record.meeting_id else None,
+                context_vector=record.context_vector,
             )
         except Exception as e:
             self.logger.error(f"Error converting record to message: {str(e)}")

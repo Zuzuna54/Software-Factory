@@ -25,11 +25,11 @@ logger = logging.getLogger(__name__)
 
 # Default values
 DEFAULT_REGION = "us-central1"
-DEFAULT_GEMINI_TEXT_MODEL = "models/gemini-2.5-flash-preview-04-17"
+DEFAULT_GEMINI_TEXT_MODEL = "models/gemini-2.5-pro-preview-05-06"
 DEFAULT_GEMINI_EMBEDDING_MODEL = "models/text-embedding-004"
 DEFAULT_TASK_TYPE = "RETRIEVAL_DOCUMENT"
 DEFAULT_MAX_RETRIES = 3
-DEFAULT_MAX_OUTPUT_TOKENS = 1024
+DEFAULT_MAX_OUTPUT_TOKENS = 8192
 
 # Error types that should trigger retry
 RETRIABLE_EXCEPTIONS = (
@@ -212,16 +212,66 @@ class VertexGeminiProvider(LLMProvider):
                 generation_config=generation_config,
             )
 
-            # Extract the generated text
-            generated_text = response.text
+            # Extract the generated text and actual finish reason
+            generated_text = ""  # Default to empty string
+            actual_finish_reason = "unknown"
+            safety_ratings_str = "unavailable"
+            candidate_info = "No candidates found"
+
+            if response.candidates:
+                candidate = response.candidates[0]
+                if candidate.content and candidate.content.parts:
+                    generated_text = candidate.content.parts[0].text
+                actual_finish_reason = (
+                    candidate.finish_reason.name if candidate.finish_reason else "none"
+                )
+                safety_ratings_str = (
+                    str(candidate.safety_ratings)
+                    if candidate.safety_ratings
+                    else "none"
+                )
+                candidate_info = f"Finish Reason: {actual_finish_reason}, Safety: {safety_ratings_str}"
+            else:
+                # This case might indicate a completely empty or blocked response
+                # Try to get prompt_feedback if available for blocked prompts
+                if hasattr(response, "prompt_feedback") and response.prompt_feedback:
+                    candidate_info = f"Prompt Feedback: {str(response.prompt_feedback)}"
+                    actual_finish_reason = "blocked_by_prompt_feedback"
+
+            # Log detailed candidate info
+            logger.info(
+                f"Gemini API response details: {candidate_info}, Prompt length: {len(prompt)}, Received text length: {len(generated_text)}"
+            )
+
+            # Strip markdown fences if present
+            if generated_text.startswith("```json"):
+                generated_text = generated_text[len("```json") :]
+                if generated_text.endswith("```"):
+                    generated_text = generated_text[: -len("```")]
+            elif generated_text.startswith("```"):
+                generated_text = generated_text[len("```") :]
+                if generated_text.endswith("```"):
+                    generated_text = generated_text[: -len("```")]
+            generated_text = (
+                generated_text.strip()
+            )  # Clean up any surrounding whitespace
 
             # Prepare metadata
             metadata = {
                 "model": self._text_model_name,
                 "usage": {},  # Gemini API doesn't directly provide token usage
                 "latency_ms": int((time.time() - start_time) * 1000),
-                "finish_reason": "stop",  # Default, could be refined based on response
+                "finish_reason": actual_finish_reason,  # Use actual finish reason
+                "safety_ratings": safety_ratings_str,
+                "raw_response_info": candidate_info,  # For more detailed debugging
             }
+
+            # If generated_text is still empty but actual_finish_reason was STOP, this is the problematic case
+            if not generated_text and actual_finish_reason == "STOP":
+                logger.warning(
+                    f"Gemini model {self._text_model_name} returned empty text with finish_reason STOP. "
+                    f"Prompt (first 200 chars): '{prompt[:200]}...'"
+                )
 
             return generated_text, metadata
         except Exception as e:
@@ -504,6 +554,8 @@ class VertexGeminiProvider(LLMProvider):
             "gemini-1.5-flash",
             "text-bison@002",
             "text-bison@001",
+            "gemini-2.5-pro-preview-05-06",
+            "gemini-2.5-flash-preview-04-17",
         ]
 
     async def is_available(self) -> bool:

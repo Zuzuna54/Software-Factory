@@ -7,12 +7,14 @@ from .core import (
     Agent,
     AgentMessage,
     AgentActivity,
-    Artifact,
     Task,
     Meeting,
     MeetingConversation,
+    Conversation,
+    Project,
 )
 from .artifacts import (
+    Artifact,
     RequirementsArtifact,
     DesignArtifact,
     ImplementationArtifact,
@@ -32,11 +34,12 @@ __all__ = [
     "Agent",
     "AgentMessage",
     "AgentActivity",
-    "Artifact",
     "Task",
     "Meeting",
     "MeetingConversation",
+    "Project",
     # Artifact models
+    "Artifact",
     "RequirementsArtifact",
     "DesignArtifact",
     "ImplementationArtifact",
@@ -45,4 +48,5 @@ __all__ = [
     "ProjectRoadmap",
     "CodebaseAnalysis",
     "DetectedPattern",
+    "Conversation",
 ]

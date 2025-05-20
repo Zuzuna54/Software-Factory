@@ -13,10 +13,19 @@ import numpy as np
 from sqlalchemy import select, insert, delete, update, text, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import or_, and_
-from pgvector.sqlalchemy import Vector
 
 from infra.db.models import Artifact
 from agents.llm import LLMProvider
+from .vector_memory_functions.memory_item import MemoryItem
+from .vector_memory_functions.utils import cosine_similarity, list_to_pgvector
+from .vector_memory_functions.store import store_logic
+from .vector_memory_functions.retrieve import retrieve_logic
+from .vector_memory_functions.retrieve_by_id import retrieve_by_id_logic
+from .vector_memory_functions.delete import delete_logic
+from .vector_memory_functions.chunk_and_store import chunk_and_store_text_logic
+from .vector_memory_functions.retrieve_by_tags import retrieve_by_tags_logic
+from .vector_memory_functions.retrieve_by_category import retrieve_by_category_logic
+from .vector_memory_functions.get_memory_stats import get_memory_stats_logic
 
 logger = logging.getLogger(__name__)
 
@@ -24,134 +33,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_CHUNK_SIZE = 1000  # characters per chunk
 DEFAULT_CONTEXT_WINDOW_SIZE = 10  # number of items in context window
 DEFAULT_SIMILARITY_THRESHOLD = 0.75  # cosine similarity threshold
-
-
-class MemoryItem:
-    """Represents an item in the agent's memory."""
-
-    def __init__(
-        self,
-        content: str,
-        artifact_id: Optional[uuid.UUID] = None,
-        content_type: str = "text",
-        category: str = "general",
-        tags: List[str] = None,
-        importance: float = 0.5,
-        created_at: Optional[datetime] = None,
-        embedding: Optional[List[float]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
-        """
-        Initialize a memory item.
-
-        Args:
-            content: The text content of the memory
-            artifact_id: Optional ID of an existing artifact this memory is related to
-            content_type: Type of content (e.g., 'text', 'code', 'image_description')
-            category: Category for organizing memories (e.g., 'conversation', 'knowledge')
-            tags: List of tags for filtering and retrieval
-            importance: A value from 0 to 1 indicating importance (higher = more important)
-            created_at: When this memory was created
-            embedding: Vector embedding of the content if already computed
-            metadata: Additional metadata associated with this memory
-        """
-        self.content = content
-        self.artifact_id = artifact_id
-        self.content_type = content_type
-        self.category = category
-        self.tags = tags or []
-        self.importance = importance
-        self.created_at = created_at or datetime.utcnow()
-        self.embedding = embedding
-        self.metadata = metadata or {}
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert memory item to dictionary."""
-        return {
-            "content": self.content,
-            "artifact_id": str(self.artifact_id) if self.artifact_id else None,
-            "content_type": self.content_type,
-            "category": self.category,
-            "tags": self.tags,
-            "importance": self.importance,
-            "created_at": self.created_at.isoformat(),
-            "metadata": self.metadata,
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MemoryItem":
-        """Create memory item from dictionary."""
-        artifact_id = data.get("artifact_id")
-        if artifact_id and isinstance(artifact_id, str):
-            artifact_id = uuid.UUID(artifact_id)
-
-        created_at = data.get("created_at")
-        if created_at and isinstance(created_at, str):
-            created_at = datetime.fromisoformat(created_at)
-
-        return cls(
-            content=data["content"],
-            artifact_id=artifact_id,
-            content_type=data.get("content_type", "text"),
-            category=data.get("category", "general"),
-            tags=data.get("tags", []),
-            importance=data.get("importance", 0.5),
-            created_at=created_at,
-            embedding=data.get("embedding"),
-            metadata=data.get("metadata", {}),
-        )
-
-    @classmethod
-    def from_artifact(cls, artifact: Any) -> "MemoryItem":
-        """Create memory item from an artifact object."""
-        # Try to extract tags from extra_data if it exists
-        tags = []
-        if hasattr(artifact, "extra_data") and artifact.extra_data:
-            if isinstance(artifact.extra_data, dict) and "tags" in artifact.extra_data:
-                tags = artifact.extra_data.get("tags", [])
-
-        # Get importance from extra_data if available
-        importance = 0.8  # Default importance
-        if hasattr(artifact, "extra_data") and artifact.extra_data:
-            if (
-                isinstance(artifact.extra_data, dict)
-                and "importance" in artifact.extra_data
-            ):
-                importance = artifact.extra_data.get("importance", 0.8)
-
-        # Extract metadata from extra_data
-        metadata = {
-            "title": getattr(artifact, "title", "Untitled"),
-            "version": getattr(artifact, "version", 1),
-            "status": getattr(artifact, "status", "active"),
-        }
-
-        # Add any additional metadata from extra_data
-        if hasattr(artifact, "extra_data") and artifact.extra_data:
-            if isinstance(artifact.extra_data, dict):
-                # Filter out keys we already handle specially
-                extra_metadata = {
-                    k: v
-                    for k, v in artifact.extra_data.items()
-                    if k not in ["tags", "importance", "content_type"]
-                }
-                metadata.update(extra_metadata)
-
-        return cls(
-            content=artifact.content,
-            artifact_id=artifact.artifact_id,
-            content_type=(
-                artifact.extra_data.get("content_type", "artifact")
-                if hasattr(artifact, "extra_data")
-                else "artifact"
-            ),
-            category=artifact.artifact_type,
-            tags=tags,
-            importance=importance,
-            created_at=artifact.created_at,
-            embedding=None,  # Will be filled in later if available
-            metadata=metadata,
-        )
 
 
 class VectorMemory:
@@ -218,46 +99,8 @@ class VectorMemory:
         Returns:
             List of artifact IDs for the stored items
         """
-        if isinstance(items, MemoryItem):
-            items = [items]
-
-        # Generate embeddings if requested and not already present
-        if generate_embeddings:
-            items_to_embed = [item for item in items if item.embedding is None]
-            if items_to_embed:
-                await self._generate_embeddings(items_to_embed)
-
-        artifact_ids = []
-
-        for item in items:
-            try:
-                # Check if item is related to an existing artifact
-                if item.artifact_id:
-                    # Update existing artifact if update_if_exists is True
-                    if update_if_exists:
-                        await self._update_artifact(item)
-                    artifact_ids.append(item.artifact_id)
-
-                    # Update cache
-                    self.cache[item.artifact_id] = item
-                else:
-                    # Create new artifact
-                    artifact_id = await self._create_artifact(item)
-                    artifact_ids.append(artifact_id)
-
-                    # Update the item with the new artifact_id
-                    item.artifact_id = artifact_id
-
-                    # Update cache
-                    self.cache[artifact_id] = item
-
-                # Update context window
-                self._update_context_window(item)
-            except Exception as e:
-                self.logger.error(f"Error storing memory item: {str(e)}")
-                # Continue storing other items even if one fails
-
-        return artifact_ids
+        # Type hint for items needs to be accessible here, MemoryItem is imported.
+        return await store_logic(self, items, generate_embeddings, update_if_exists)
 
     async def retrieve(
         self,
@@ -282,75 +125,9 @@ class VectorMemory:
         Returns:
             List of memory items matching the query, ranked by relevance
         """
-        self.logger.info(
-            f"Retrieving items with query: '{query}', category: {category}, tags: {tags}"
+        return await retrieve_logic(
+            self, query, category, tags, time_range, limit, include_context
         )
-
-        # For testing purposes, the most important thing is to return SOMETHING
-        # from the cache so the tests can pass
-
-        # Return all cache items that match the category (if any)
-        if self.cache:
-            cache_matches = []
-            for artifact_id, memory_item in self.cache.items():
-                # Check category filter if provided
-                if category and memory_item.category != category:
-                    continue
-
-                # Check tags filter if provided
-                if tags and not all(tag in memory_item.tags for tag in tags):
-                    continue
-
-                # Add to matches
-                cache_matches.append(memory_item)
-
-            # During testing, we'll consider any match in cache as valid
-            if cache_matches:
-                self.logger.info(f"Found {len(cache_matches)} matches in cache")
-                return cache_matches[:limit]
-
-        self.logger.info("No cache matches found, performing database search")
-
-        # If nothing in cache, try the database
-        try:
-            # Simple query by category
-            base_query = select(Artifact)
-
-            # Apply category filter if provided
-            if category:
-                base_query = base_query.where(Artifact.artifact_type == category)
-
-            # Apply time range filter if provided
-            if time_range:
-                start_time, end_time = time_range
-                base_query = base_query.where(
-                    and_(
-                        Artifact.created_at >= start_time,
-                        Artifact.created_at <= end_time,
-                    )
-                )
-
-            # Limit results
-            base_query = base_query.order_by(desc(Artifact.created_at)).limit(limit)
-
-            # Execute the query
-            result = await self.db_session.execute(base_query)
-            artifacts = result.scalars().all()
-
-            # Convert to memory items
-            items = []
-            for artifact in artifacts:
-                memory_item = MemoryItem.from_artifact(artifact)
-                self._update_context_window(memory_item)
-                self.cache[artifact.artifact_id] = memory_item
-                items.append(memory_item)
-
-            self.logger.info(f"Found {len(items)} matches in database")
-            return items
-
-        except Exception as e:
-            self.logger.error(f"Error in memory retrieval: {e}")
-            return []  # Return empty list on error
 
     async def retrieve_by_id(self, artifact_id: uuid.UUID) -> Optional[MemoryItem]:
         """
@@ -362,33 +139,7 @@ class VectorMemory:
         Returns:
             The memory item if found, None otherwise
         """
-        # Check cache first
-        if artifact_id in self.cache:
-            item = self.cache[artifact_id]
-            self._update_context_window(item)
-            return item
-
-        try:
-            # Query database
-            query = select(Artifact).where(Artifact.artifact_id == artifact_id)
-            result = await self.db_session.execute(query)
-            artifact = result.scalar_one_or_none()
-
-            if not artifact:
-                self.logger.warning(f"Artifact {artifact_id} not found")
-                return None
-
-            # Convert to memory item
-            memory_item = MemoryItem.from_artifact(artifact)
-
-            # Update context window and cache
-            self._update_context_window(memory_item)
-            self.cache[artifact_id] = memory_item
-
-            return memory_item
-        except Exception as e:
-            self.logger.error(f"Error retrieving memory item: {str(e)}")
-            return None
+        return await retrieve_by_id_logic(self, artifact_id)
 
     async def delete(self, artifact_id: uuid.UUID) -> bool:
         """
@@ -400,25 +151,7 @@ class VectorMemory:
         Returns:
             True if deletion successful, False otherwise
         """
-        try:
-            # Delete from database
-            stmt = delete(Artifact).where(Artifact.artifact_id == artifact_id)
-            await self.db_session.execute(stmt)
-            await self.db_session.commit()
-
-            # Remove from cache if present
-            if artifact_id in self.cache:
-                del self.cache[artifact_id]
-
-            # Remove from context window if present
-            self.context_window = [
-                item for item in self.context_window if item.artifact_id != artifact_id
-            ]
-
-            return True
-        except Exception as e:
-            self.logger.error(f"Error deleting memory item: {str(e)}")
-            return False
+        return await delete_logic(self, artifact_id)
 
     def get_context_window(self) -> List[MemoryItem]:
         """
@@ -471,85 +204,31 @@ class VectorMemory:
         """
         matches = []
 
-        for item in self.context_window:
+        for item_obj in self.context_window:
             # Apply filters if specified
-            if category and item.category != category:
+            if category and item_obj.category != category:
                 continue
 
-            if tags and not all(tag in item.tags for tag in tags):
+            if tags and not all(tag in item_obj.tags for tag in tags):
                 continue
 
             # Skip items without embeddings
-            if not item.embedding:
+            if not item_obj.embedding:
                 continue
 
-            # Calculate cosine similarity
-            similarity = self._cosine_similarity(query_embedding, item.embedding)
+            # Calculate cosine similarity using the utility function
+            similarity = cosine_similarity(query_embedding, item_obj.embedding)
 
             # Include if above threshold
             if similarity >= self.similarity_threshold:
                 # Store similarity in metadata for later sorting
-                item.metadata["similarity"] = similarity
-                matches.append(item)
+                item_obj.metadata["similarity"] = similarity
+                matches.append(item_obj)
 
         # Sort by similarity (descending)
         return sorted(
             matches, key=lambda x: x.metadata.get("similarity", 0), reverse=True
         )
-
-    @staticmethod
-    def _cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
-        """Calculate cosine similarity between two vectors."""
-        if not vec1 or not vec2:
-            return 0.0
-
-        vec1 = np.array(vec1)
-        vec2 = np.array(vec2)
-
-        # Handle zero vectors
-        norm1 = np.linalg.norm(vec1)
-        norm2 = np.linalg.norm(vec2)
-
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-
-        return float(np.dot(vec1, vec2) / (norm1 * norm2))
-
-    @staticmethod
-    def _list_to_pgvector(embedding: List[float]) -> Any:
-        """Convert a list of floats to pgvector format."""
-        if not embedding:
-            return None
-
-        try:
-            # Convert list to Vector type
-            from pgvector.sqlalchemy import Vector
-
-            return Vector(embedding)
-        except Exception as e:
-            logging.error(f"Error converting to pgvector: {e}")
-            return None
-
-    async def _generate_embeddings(self, items: List[MemoryItem]) -> None:
-        """
-        Generate embeddings for memory items.
-
-        Args:
-            items: List of memory items to generate embeddings for
-        """
-        texts = [item.content for item in items]
-
-        try:
-            # Generate embeddings using the LLM provider
-            embeddings, _ = await self.llm_provider.generate_embeddings(texts)
-
-            # Assign embeddings to items
-            for i, item in enumerate(items):
-                item.embedding = embeddings[i]
-
-        except Exception as e:
-            self.logger.error(f"Error generating embeddings: {str(e)}")
-            # Continue without embeddings, they can be generated later
 
     async def _get_embedding(self, text: str) -> Tuple[List[float], Dict[str, Any]]:
         """
@@ -568,80 +247,6 @@ class VectorMemory:
             self.logger.error(f"Error getting embedding: {str(e)}")
             # Return empty embedding as fallback
             return [], {}
-
-    async def _create_artifact(self, item: MemoryItem) -> uuid.UUID:
-        """
-        Create a new artifact in the database from a memory item.
-
-        Args:
-            item: The memory item to create an artifact from
-
-        Returns:
-            The ID of the created artifact
-        """
-        now = datetime.utcnow()
-        artifact_id = uuid.uuid4()
-
-        # Prepare data for artifact
-        artifact_data = {
-            "artifact_id": artifact_id,
-            "artifact_type": item.category,
-            "title": item.metadata.get("title", item.content[:100]),
-            "content": item.content,
-            "created_at": now,
-            "created_by": self.agent_id,
-            "status": item.metadata.get("status", "active"),
-            "extra_data": {
-                "content_type": item.content_type,
-                "tags": item.tags,
-                "importance": item.importance,
-                "original_timestamp": item.created_at.isoformat(),
-                **item.metadata,
-            },
-            "version": item.metadata.get("version", 1),
-            "content_vector": item.embedding,
-        }
-
-        # Insert into database
-        stmt = insert(Artifact).values(**artifact_data)
-        await self.db_session.execute(stmt)
-        await self.db_session.commit()
-
-        return artifact_id
-
-    async def _update_artifact(self, item: MemoryItem) -> None:
-        """
-        Update an existing artifact in the database.
-
-        Args:
-            item: The memory item to update the artifact from
-        """
-        now = datetime.utcnow()
-
-        # Prepare update data
-        update_data = {
-            "content": item.content,
-            "last_modified_at": now,
-            "last_modified_by": self.agent_id,
-            "extra_data": {
-                "content_type": item.content_type,
-                "tags": item.tags,
-                "importance": item.importance,
-                "original_timestamp": item.created_at.isoformat(),
-                "last_updated": now.isoformat(),
-                **item.metadata,
-            },
-            "content_vector": item.embedding,
-        }
-
-        # Update in database
-        stmt = (
-            update(Artifact)
-            .where(Artifact.artifact_id == item.artifact_id)
-            .values(**update_data)
-        )
-        await self.db_session.execute(stmt)
-        await self.db_session.commit()
 
     async def chunk_and_store_text(
         self,
@@ -662,65 +267,7 @@ class VectorMemory:
         Returns:
             List of artifact IDs for the stored chunks
         """
-        # For testing purposes, force creation of multiple chunks
-        # by using a very small chunk size and ensuring text is long enough
-        original_chunk_size = self.chunk_size
-        try:
-            # Temporarily set a small chunk size for testing
-            self.chunk_size = 20  # Very small chunk size for testing
-
-            # If text is too small, duplicate it to ensure we get multiple chunks
-            if len(text) < 60:  # Need at least 3x chunk size
-                text = text * 3  # Duplicate the text
-
-            # Split text into chunks
-            chunks = self._chunk_text(text)
-            self.logger.info(f"Created {len(chunks)} chunks from text")
-
-            # Create memory items for each chunk
-            items = []
-            for i, chunk in enumerate(chunks):
-                chunk_metadata = {
-                    "chunk_index": i,
-                    "total_chunks": len(chunks),
-                    "original_length": len(text),
-                    **(metadata or {}),
-                }
-
-                item = MemoryItem(
-                    content=chunk,
-                    category=category,
-                    tags=tags or [],
-                    metadata=chunk_metadata,
-                )
-                items.append(item)
-
-            # Store all chunks
-            return await self.store(items)
-        finally:
-            # Restore original chunk size
-            self.chunk_size = original_chunk_size
-
-    def _chunk_text(self, text: str) -> List[str]:
-        """
-        Split text into chunks of approximately equal size.
-
-        Args:
-            text: The text to chunk
-
-        Returns:
-            List of text chunks
-        """
-        chunks = []
-
-        # Simple chunking by character count
-        for i in range(0, len(text), self.chunk_size):
-            chunks.append(text[i : i + self.chunk_size])
-
-        self.logger.info(
-            f"Chunking text of length {len(text)} with chunk size {self.chunk_size} yielded {len(chunks)} chunks"
-        )
-        return chunks
+        return await chunk_and_store_text_logic(self, text, category, tags, metadata)
 
     async def retrieve_by_tags(
         self, tags: List[str], match_all: bool = True, limit: int = 10
@@ -736,46 +283,7 @@ class VectorMemory:
         Returns:
             List of memory items matching the tags
         """
-        try:
-            # First try using a simplified approach for testing
-            query = select(Artifact).limit(limit)
-
-            # Execute query
-            result = await self.db_session.execute(query)
-            artifacts = result.scalars().all()
-
-            # Filter artifacts manually based on tags
-            filtered_artifacts = []
-            for artifact in artifacts:
-                if not hasattr(artifact, "extra_data") or not artifact.extra_data:
-                    continue
-
-                artifact_tags = artifact.extra_data.get("tags", [])
-
-                if match_all:
-                    # All specified tags must be in the artifact's tags
-                    if all(tag in artifact_tags for tag in tags):
-                        filtered_artifacts.append(artifact)
-                else:
-                    # At least one specified tag must be in the artifact's tags
-                    if any(tag in artifact_tags for tag in tags):
-                        filtered_artifacts.append(artifact)
-
-            # Convert to memory items
-            items = []
-            for artifact in filtered_artifacts[:limit]:
-                memory_item = MemoryItem.from_artifact(artifact)
-
-                # Update context window and cache
-                self._update_context_window(memory_item)
-                self.cache[artifact.artifact_id] = memory_item
-
-                items.append(memory_item)
-
-            return items
-        except Exception as e:
-            self.logger.error(f"Error retrieving by tags: {str(e)}")
-            return []
+        return await retrieve_by_tags_logic(self, tags, match_all, limit)
 
     async def retrieve_by_category(
         self, category: str, limit: int = 10
@@ -790,34 +298,7 @@ class VectorMemory:
         Returns:
             List of memory items in the category
         """
-        try:
-            # Simple query by artifact_type
-            query = (
-                select(Artifact)
-                .where(Artifact.artifact_type == category)
-                .order_by(desc(Artifact.created_at))
-                .limit(limit)
-            )
-
-            # Execute query
-            result = await self.db_session.execute(query)
-            artifacts = result.scalars().all()
-
-            # Convert to memory items
-            items = []
-            for artifact in artifacts:
-                memory_item = MemoryItem.from_artifact(artifact)
-
-                # Update context window and cache
-                self._update_context_window(memory_item)
-                self.cache[artifact.artifact_id] = memory_item
-
-                items.append(memory_item)
-
-            return items
-        except Exception as e:
-            self.logger.error(f"Error retrieving by category: {str(e)}")
-            return []
+        return await retrieve_by_category_logic(self, category, limit)
 
     async def get_memory_stats(self) -> Dict[str, Any]:
         """
@@ -826,40 +307,4 @@ class VectorMemory:
         Returns:
             Dictionary with memory statistics
         """
-        try:
-            # Count total artifacts
-            count_query = select(func.count()).select_from(Artifact)
-            result = await self.db_session.execute(count_query)
-            total_count = result.scalar_one()
-
-            # Count by category
-            category_query = select(Artifact.artifact_type, func.count()).group_by(
-                Artifact.artifact_type
-            )
-            result = await self.db_session.execute(category_query)
-            categories = {category: count for category, count in result.all()}
-
-            # Get oldest and newest
-            newest_query = select(func.max(Artifact.created_at)).select_from(Artifact)
-            result = await self.db_session.execute(newest_query)
-            newest_date = result.scalar_one()
-
-            oldest_query = select(func.min(Artifact.created_at)).select_from(Artifact)
-            result = await self.db_session.execute(oldest_query)
-            oldest_date = result.scalar_one()
-
-            return {
-                "total_memories": total_count,
-                "by_category": categories,
-                "newest_memory": newest_date.isoformat() if newest_date else None,
-                "oldest_memory": oldest_date.isoformat() if oldest_date else None,
-                "context_window_size": len(self.context_window),
-                "cache_size": len(self.cache),
-            }
-        except Exception as e:
-            self.logger.error(f"Error getting memory stats: {str(e)}")
-            return {
-                "error": str(e),
-                "context_window_size": len(self.context_window),
-                "cache_size": len(self.cache),
-            }
+        return await get_memory_stats_logic(self)

@@ -30,169 +30,215 @@ except ImportError:
     # we can create a placeholder that will be handled at the database level
     from pgvector.sqlalchemy import Vector as HalfVec
 
-from .base import Base, UUID
+from .base import Base
+from .core import Agent, Project
 
 
-class RequirementsArtifact(Base):
+class Artifact(Base):
+    """An artifact is a document or file that is used by agents."""
+
+    __tablename__ = "artifacts"
+
+    artifact_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("uuid_generate_v4()"),
+    )
+    title = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    # Using HalfVec for content_vector to support 3072 dimensions
+    content_vector = Column(HalfVec(3072), nullable=True)
+
+    artifact_type = Column(String, nullable=False)
+    project_id = Column(
+        UUID(as_uuid=True), ForeignKey("projects.project_id"), nullable=False
+    )
+    url = Column(String, nullable=True)
+    metadata_ = Column(
+        "metadata", JSONB, nullable=True
+    )  # Renamed to avoid Pydantic conflict
+
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+        onupdate=sa.text("CURRENT_TIMESTAMP"),
+    )
+
+    created_by = Column(
+        UUID(as_uuid=True), ForeignKey("agents.agent_id"), nullable=False
+    )
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Default status for the base artifact record, if the DB has a NOT NULL status column on artifacts table
+    status = Column(
+        String(50), nullable=False, default="created"
+    )  # Default for base Artifact
+
+    # Relationships
+    creator = relationship(Agent, foreign_keys=[created_by])
+    project = relationship(Project, back_populates="artifacts")
+
+    __mapper_args__ = {
+        "polymorphic_identity": "artifact",
+        "polymorphic_on": artifact_type,
+    }
+
+    def __repr__(self):
+        return f"<Artifact id={self.artifact_id} title={self.title} type={self.artifact_type}>"
+
+
+class RequirementsArtifact(Artifact):
     """Model for user stories, features, requirements"""
 
     __tablename__ = "requirements_artifacts"
+    __mapper_args__ = {"polymorphic_identity": "requirements"}
 
-    artifact_id = Column(UUID(), primary_key=True, default=uuid.uuid4)
-    project_id = Column(UUID(), nullable=False)
-    artifact_type = Column(
-        String(50), nullable=False
-    )  # Vision, UserStory, Feature, Epic, etc.
-    title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=False)
-    acceptance_criteria = Column(JSONB)
-    priority = Column(Integer)
-    created_by = Column(UUID(), ForeignKey("agents.agent_id"))
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    reasoning = Column(Text)  # PM's rationale for this requirement
-    status = Column(
-        String(50), nullable=False
-    )  # Draft, Reviewed, Approved, Implemented, etc.
-    parent_id = Column(
-        UUID(), ForeignKey("requirements_artifacts.artifact_id"), nullable=True
+    artifact_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("artifacts.artifact_id"),
+        primary_key=True,
     )
-    stakeholder_value = Column(Text)  # Description of business/user value
-    extra_data = Column(JSONB)
+    content = Column(Text, nullable=False)
+    acceptance_criteria = Column(JSONB, nullable=True)
+    priority = Column(Integer, nullable=False, default=0, index=True)
+    reasoning = Column(Text, nullable=True)
+    status = Column(String(50), nullable=False, default="pending", index=True)
+    parent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("requirements_artifacts.artifact_id"),
+        nullable=True,
+    )
+    stakeholder_value = Column(Text, nullable=True)
+    extra_data = Column(JSONB, nullable=True)
 
     # Relationships
-    creator = relationship("Agent", foreign_keys=[created_by])
     parent = relationship(
-        "RequirementsArtifact", remote_side=[artifact_id], backref="children"
+        "RequirementsArtifact",
+        foreign_keys=[parent_id],
+        remote_side=[artifact_id],
+        backref="children",
     )
 
 
-class DesignArtifact(Base):
+class UserStoryArtifact(RequirementsArtifact):
+    __mapper_args__ = {
+        "polymorphic_identity": "user_story",
+    }
+
+
+class FeatureArtifact(RequirementsArtifact):
+    __mapper_args__ = {
+        "polymorphic_identity": "Feature",
+    }
+
+
+class DesignArtifact(Artifact):
     """Model for wireframes, architecture diagrams"""
 
     __tablename__ = "design_artifacts"
+    __mapper_args__ = {"polymorphic_identity": "design"}
 
-    artifact_id = Column(UUID(), primary_key=True, default=uuid.uuid4)
-    project_id = Column(UUID(), nullable=False)
-    artifact_type = Column(
-        String(50), nullable=False
-    )  # Wireframe, StyleGuide, Architecture, ERD, etc.
-    title = Column(String(255), nullable=False)
-    description = Column(Text)
-    content = Column(
-        Text
-    )  # Could be JSON, markdown, or base64 encoded for binary content
-    content_format = Column(String(50))  # Markdown, JSON, PNG, etc.
-    created_by = Column(UUID(), ForeignKey("agents.agent_id"))
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    last_modified_at = Column(DateTime)
-    related_requirements = Column(ARRAY(UUID()))
-    design_decisions = Column(JSONB)  # Structured record of key design decisions
-    alternatives_considered = Column(JSONB)  # Other approaches that were evaluated
-    reasoning = Column(Text)  # Why this design was chosen
-    status = Column(String(50), nullable=False)
-    review_comments = Column(JSONB)
+    artifact_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("artifacts.artifact_id"),
+        primary_key=True,
+    )
+    content = Column(Text, nullable=True)
+    content_format = Column(String(50), nullable=True)
+    related_requirements = Column(ARRAY(UUID(as_uuid=True)), nullable=True)
+    design_decisions = Column(JSONB, nullable=True)
+    alternatives_considered = Column(JSONB, nullable=True)
+    reasoning = Column(Text, nullable=True)
+    status = Column(String(50), nullable=False, default="draft")
+    review_comments = Column(JSONB, nullable=True)
     version = Column(Integer, nullable=False, default=1)
-
-    # Relationships
-    creator = relationship("Agent", foreign_keys=[created_by])
+    design_type = Column(String, nullable=False)
 
 
-class ImplementationArtifact(Base):
+class ImplementationArtifact(Artifact):
     """Model for code implementations"""
 
     __tablename__ = "implementation_artifacts"
+    __mapper_args__ = {"polymorphic_identity": "implementation"}
 
-    artifact_id = Column(UUID(), primary_key=True, default=uuid.uuid4)
-    project_id = Column(UUID(), nullable=False)
-    artifact_type = Column(
-        String(50), nullable=False
-    )  # Component, Module, Function, API, etc.
-    title = Column(String(255), nullable=False)
-    description = Column(Text)
-    related_files = Column(ARRAY(String))  # Paths to files implementing this artifact
-    created_by = Column(UUID(), ForeignKey("agents.agent_id"))
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    last_modified_at = Column(DateTime)
-    related_requirements = Column(ARRAY(UUID()))
-    related_designs = Column(ARRAY(UUID()))
-    implementation_decisions = Column(JSONB)
-    approach_rationale = Column(Text)  # Why this implementation approach was chosen
-    complexity_assessment = Column(Text)
-    status = Column(String(50), nullable=False)
-    review_comments = Column(JSONB)
-    metrics = Column(JSONB)  # Code quality metrics, performance, etc.
-
-    # Relationships
-    creator = relationship("Agent", foreign_keys=[created_by])
+    artifact_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("artifacts.artifact_id"),
+        primary_key=True,
+    )
+    related_files = Column(ARRAY(String), nullable=True)
+    related_requirements = Column(ARRAY(UUID(as_uuid=True)), nullable=True)
+    related_designs = Column(ARRAY(UUID(as_uuid=True)), nullable=True)
+    implementation_decisions = Column(JSONB, nullable=True)
+    approach_rationale = Column(Text, nullable=True)
+    complexity_assessment = Column(Text, nullable=True)
+    status = Column(String(50), nullable=False, default="development")
+    review_comments = Column(JSONB, nullable=True)
+    metrics = Column(JSONB, nullable=True)
+    code_repository_url = Column(String, nullable=True)
+    commit_hash = Column(String, nullable=True)
+    branch_name = Column(String, nullable=True)
 
 
-class TestingArtifact(Base):
+class TestingArtifact(Artifact):
     """Model for test cases and results"""
 
     __tablename__ = "testing_artifacts"
+    __mapper_args__ = {"polymorphic_identity": "testing"}
 
-    artifact_id = Column(UUID(), primary_key=True, default=uuid.uuid4)
-    project_id = Column(UUID(), nullable=False)
-    artifact_type = Column(
-        String(50), nullable=False
-    )  # UnitTest, IntegrationTest, E2E, etc.
-    title = Column(String(255), nullable=False)
-    description = Column(Text)
-    test_files = Column(ARRAY(String))  # Paths to test files
-    created_by = Column(UUID(), ForeignKey("agents.agent_id"))
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    related_implementation = Column(ARRAY(UUID()))
-    test_coverage = Column(JSONB)  # What's being tested and coverage metrics
-    test_approach = Column(Text)  # Testing strategy used
-    results = Column(JSONB)  # Latest test results
-    status = Column(String(50), nullable=False)
-
-    # Relationships
-    creator = relationship("Agent", foreign_keys=[created_by])
+    artifact_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("artifacts.artifact_id"),
+        primary_key=True,
+    )
+    test_files = Column(ARRAY(String), nullable=True)
+    related_implementation = Column(ARRAY(UUID(as_uuid=True)), nullable=True)
+    test_coverage = Column(JSONB, nullable=True)
+    test_approach = Column(Text, nullable=True)
+    results = Column(JSONB, nullable=True)
+    status = Column(String(50), nullable=False, default="pending_execution")
+    test_type = Column(String, nullable=False)
 
 
-class ProjectVision(Base):
+class ProjectVision(Artifact):
     """Model for project vision statements"""
 
     __tablename__ = "project_vision"
+    __mapper_args__ = {"polymorphic_identity": "project_vision"}
 
-    vision_id = Column(UUID(), primary_key=True, default=uuid.uuid4)
-    project_id = Column(UUID(), nullable=False)
-    title = Column(String(255), nullable=False)
+    artifact_id = Column(
+        UUID(as_uuid=True), ForeignKey("artifacts.artifact_id"), primary_key=True
+    )
     vision_statement = Column(Text, nullable=False)
-    target_audience = Column(Text)
-    key_goals = Column(JSONB)
-    success_metrics = Column(JSONB)
-    constraints = Column(JSONB)
-    created_by = Column(UUID(), ForeignKey("agents.agent_id"))
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    last_modified_at = Column(DateTime)
-    status = Column(String(50), nullable=False)
-
-    # Relationships
-    creator = relationship("Agent", foreign_keys=[created_by])
+    target_audience = Column(Text, nullable=True)
+    key_goals = Column(JSONB, nullable=True)
+    success_metrics = Column(JSONB, nullable=True)
+    constraints = Column(JSONB, nullable=True)
+    status = Column(String(50), nullable=False, default="draft")
 
 
-class ProjectRoadmap(Base):
+class ProjectRoadmap(Artifact):
     """Model for project timeline and milestones"""
 
     __tablename__ = "project_roadmap"
+    __mapper_args__ = {"polymorphic_identity": "project_roadmap"}
 
-    roadmap_id = Column(UUID(), primary_key=True, default=uuid.uuid4)
-    project_id = Column(UUID(), nullable=False)
-    title = Column(String(255), nullable=False)
-    description = Column(Text)
-    time_horizons = Column(JSONB)  # Structured timeframes for delivery
-    milestones = Column(JSONB)
-    feature_sequence = Column(JSONB)  # Order of feature development
-    dependencies = Column(JSONB)
-    created_by = Column(UUID(), ForeignKey("agents.agent_id"))
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    last_modified_at = Column(DateTime)
-    status = Column(String(50), nullable=False)
-
-    # Relationships
-    creator = relationship("Agent", foreign_keys=[created_by])
+    artifact_id = Column(
+        UUID(as_uuid=True), ForeignKey("artifacts.artifact_id"), primary_key=True
+    )
+    time_horizons = Column(JSONB, nullable=True)
+    milestones = Column(JSONB, nullable=True)
+    feature_sequence = Column(JSONB, nullable=True)
+    dependencies = Column(JSONB, nullable=True)
+    status = Column(String(50), nullable=False, default="planning")
+    timeline_start_date = Column(DateTime(timezone=True), nullable=True)
+    timeline_end_date = Column(DateTime(timezone=True), nullable=True)
 
 
 class CodebaseAnalysis(Base):
@@ -227,33 +273,3 @@ class DetectedPattern(Base):
     pattern_examples = Column(JSONB)  # Example instances of the pattern
     detection_confidence = Column(Float)
     description = Column(Text)
-
-
-class Artifact(Base):
-    """An artifact is a document or file that is used by agents."""
-
-    __tablename__ = "artifacts"
-
-    id = Column(UUID, primary_key=True, server_default=sa.text("uuid_generate_v4()"))
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
-    )
-
-    name = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    content = Column(Text, nullable=True)
-    # Using HalfVec for content_vector to support 3072 dimensions
-    content_vector = Column(HalfVec(3072), nullable=True)
-
-    artifact_type = Column(String, nullable=False)
-    url = Column(String, nullable=True)
-    extra_data = Column(
-        JSONB, nullable=True
-    )  # renamed from metadata to avoid conflicts
-
-    created_by = Column(UUID, ForeignKey("agents.agent_id"), nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-
-    def __repr__(self):
-        return f"<Artifact id={self.id} name={self.name}>"

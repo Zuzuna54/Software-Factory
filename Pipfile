@@ -25,7 +25,6 @@ asyncpg = "==0.28.0"
 psycopg2-binary = "==2.9.7"
 redis = "==5.0.0"
 celery = "==5.3.4"
-python-dotenv = "==1.0.0"
 pgvector = "==0.2.1"
 structlog = "==23.1.0"
 python-jose = {extras = ["cryptography"], version = "==3.3.0"}
@@ -35,6 +34,7 @@ httpx = "==0.25.0"
 prometheus-client = "==0.17.1"
 google-cloud-storage = "==2.11.0"
 google-generativeai = "*"
+python-dotenv = "*"
 
 [requires]
 python_version = "3.12"

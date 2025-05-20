@@ -1,5 +1,5 @@
 ---
-description: 
+description: Ensure consistent, reliable, and maintainable testing practices across the project to catch bugs early and prevent regressions while enabling safe refactoring and feature development.
 globs: 
 alwaysApply: false
 ---

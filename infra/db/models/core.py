@@ -26,6 +26,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.declarative import declared_attr
 from pgvector.sqlalchemy import Vector
 import sqlalchemy as sa
+from .base import Base
 
 # Add import for HalfVec if available
 try:
@@ -35,26 +36,7 @@ except ImportError:
     # we can create a placeholder that will be handled at the database level
     from pgvector.sqlalchemy import Vector as HalfVec
 
-metadata_obj = MetaData(schema="public")
-
-
-class Base(DeclarativeBase):
-    """Base class for all models."""
-
-    metadata = metadata_obj
-    type_annotation_map = {
-        List[str]: ARRAY(String),
-        Dict[str, Any]: JSONB,
-    }
-
-    @declared_attr.directive
-    def __tablename__(cls) -> str:
-        return cls.__name__.lower()
-
-    # Define a vector column type for embeddings (3072 dimensions for Gemini)
-    @staticmethod
-    def get_vector_column(dimension=3072):
-        return Column(Vector(dimension))
+# metadata_obj = MetaData(schema="public")
 
 
 class Agent(Base):
@@ -163,32 +145,6 @@ class AgentActivity(Base):
     agent = relationship("Agent", back_populates="activities")
 
 
-class Artifact(Base):
-    """Model for general artifact storage"""
-
-    __tablename__ = "artifacts"
-    __mapper_args__ = {"exclude_properties": ["id"]}
-
-    artifact_id = Column(UUID, primary_key=True, default=uuid.uuid4)
-    artifact_type = Column(String(50), nullable=False)
-    title = Column(String(255), nullable=False)
-    content = Column(Text)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    created_by = Column(UUID, ForeignKey("agents.agent_id"))
-    last_modified_at = Column(DateTime)
-    last_modified_by = Column(UUID, ForeignKey("agents.agent_id"))
-    parent_id = Column(UUID, ForeignKey("artifacts.artifact_id"), nullable=True)
-    status = Column(String(50), nullable=False)
-    extra_data = Column(JSONB)  # Renamed from metadata to avoid conflict
-    version = Column(Integer, nullable=False, default=1)
-    content_vector = Column(Vector(3072))  # Vector for semantic search
-
-    # Relationships
-    parent = relationship("Artifact", remote_side=[artifact_id])
-    creator = relationship("Agent", foreign_keys=[created_by])
-    last_modifier = relationship("Agent", foreign_keys=[last_modified_by])
-
-
 class Task(Base):
     """Model for task definitions and assignments"""
 
@@ -280,3 +236,29 @@ class Conversation(Base):
         primaryjoin="Conversation.conversation_id == foreign(AgentMessage.extra_data['conversation_id'].astext.cast(UUID))",
         viewonly=True,
     )
+
+    def __repr__(self):
+        return f"<Conversation id={self.conversation_id} topic='{self.topic}'>"
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    project_id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    created_by = Column(
+        UUID(as_uuid=True), ForeignKey("agents.agent_id"), nullable=True
+    )
+
+    # Relationship back to Artifacts
+    artifacts = relationship("Artifact", back_populates="project")
+    # Relationship to the creator Agent
+    creator = relationship("Agent", foreign_keys=[created_by])
+
+    def __repr__(self):
+        return f"<Project id={self.project_id} name='{self.name}'>"

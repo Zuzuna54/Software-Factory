@@ -12,7 +12,30 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert
 
-from infra.db.models import Agent, AgentActivity, AgentMessage
+from agents.llm.vertex_gemini_provider import VertexGeminiProvider
+
+# Added imports for VectorMemory integration
+from agents.memory.vector_memory import VectorMemory, MemoryItem
+
+# Added imports for ActivityLogger integration
+from agents.logging.activity_logger import (
+    ActivityLogger,
+    ActivityCategory,
+    ActivityLevel,
+)
+
+# Added imports for Communication integration
+from agents.communication.protocol import Protocol
+from agents.communication.message import Message, MessageType
+
+# Import for the refactored function
+from agents.base_agent_functions.store_memory_item import store_memory_item_logic
+from agents.base_agent_functions.retrieve_memories import retrieve_memories_logic
+from agents.base_agent_functions.think import think_logic
+from agents.base_agent_functions.send_message import send_message_logic
+from agents.base_agent_functions.receive_message import receive_message_logic
+
+from agents.db.postgres import PostgresClient
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +56,10 @@ class BaseAgent:
         capabilities: List[str] = None,
         system_prompt: Optional[str] = None,
         db_session: Optional[AsyncSession] = None,
+        db_client: Optional[PostgresClient] = None,
+        llm_provider: Optional[VertexGeminiProvider] = None,
+        vector_memory: Optional[VectorMemory] = None,
+        min_log_level: Optional[ActivityLevel] = None,
         **kwargs,
     ):
         """
@@ -46,6 +73,10 @@ class BaseAgent:
             capabilities: List of agent capabilities
             system_prompt: System prompt for the agent's LLM
             db_session: Database session for persistent operations
+            db_client: Database client for communication operations
+            llm_provider: LLM provider for generating embeddings and other LLM tasks
+            vector_memory: Optional pre-initialized vector memory system
+            min_log_level: Minimum log level for ActivityLogger
             **kwargs: Additional agent-specific configuration
         """
         self.agent_id = agent_id or uuid.uuid4()
@@ -55,6 +86,8 @@ class BaseAgent:
         self.capabilities = capabilities or []
         self.system_prompt = system_prompt
         self.db_session = db_session
+        self.db_client = db_client
+        self.llm_provider = llm_provider
         self.status = "active"
         self.extra_data = kwargs  # Store any additional configuration
         self.created_at = datetime.utcnow()
@@ -63,65 +96,115 @@ class BaseAgent:
         self.max_retries = kwargs.get("max_retries", 3)
         self.retry_delay = kwargs.get("retry_delay", 1.0)  # seconds
 
-        # Performance tracking
-        self.operation_timings = {}
+        # Performance tracking - REMOVED, will use ActivityLogger
+        # self.operation_timings = {}
 
-        # Initialize logger
-        self._setup_logging()
-
-        logger.info(f"Agent initialized: {self.agent_name} (ID: {self.agent_id})")
-
-    async def initialize_db(self) -> None:
-        """
-        Initialize the agent in the database if it doesn't already exist.
-        """
-        if not self.db_session:
-            logger.warning("No database session provided, skipping DB initialization")
-            return
-
-        try:
-            # Check if agent already exists
-            query = select(Agent).where(Agent.agent_id == self.agent_id)
-            result = await self.db_session.execute(query)
-            existing_agent = result.scalar_one_or_none()
-
-            if existing_agent:
-                logger.info(f"Agent {self.agent_id} already exists in database")
-                return
-
-            # Create new agent record
-            agent_data = {
-                "agent_id": self.agent_id,
-                "agent_type": self.agent_type,
-                "agent_name": self.agent_name,
-                "agent_role": self.agent_role,
-                "capabilities": self.capabilities,
-                "system_prompt": self.system_prompt,
-                "status": self.status,
-                "extra_data": self.extra_data,
-                "created_at": self.created_at,
-            }
-
-            stmt = insert(Agent).values(**agent_data)
-            await self.db_session.execute(stmt)
-            await self.db_session.commit()
-
-            # Log agent creation
-            await self.log_activity(
-                activity_type="agent_created",
-                description=f"Agent {self.agent_name} ({self.agent_type}) created",
-                input_data={
-                    "agent_id": str(self.agent_id),
-                    "agent_type": self.agent_type,
-                    "agent_role": self.agent_role,
-                },
+        # Initialize VectorMemory if not provided
+        if vector_memory:
+            self.vector_memory = vector_memory
+        elif self.db_session and self.llm_provider:
+            self.vector_memory = VectorMemory(
+                db_session=self.db_session,
+                llm_provider=self.llm_provider,
+                agent_id=self.agent_id,
+            )
+        else:
+            self.vector_memory = None
+            logger.warning(
+                f"VectorMemory could not be initialized for agent {self.agent_id}. "
+                f"Missing db_session or llm_provider."
             )
 
-            logger.info(f"Agent {self.agent_id} created in database")
-        except Exception as e:
-            await self.db_session.rollback()
-            logger.error(f"Error initializing agent in database: {str(e)}")
-            raise
+        # Initialize ActivityLogger
+        self.activity_logger = ActivityLogger(
+            agent_id=self.agent_id,
+            agent_name=self.agent_name,
+            db_session=self.db_session,
+            min_level=min_log_level or ActivityLevel.INFO,
+        )
+
+        # Initialize Communication Protocol
+        self.protocol = (
+            Protocol(db_client=self.db_client, validate_recipients=False)
+            if self.db_client
+            else None
+        )
+        # Agent registration with protocol is now handled in async initialize() method
+
+        # Initialize logger (standard python logger setup)
+        self._setup_logging()
+
+        # Log basic initialization, but DB registration is separate
+        logger.info(
+            f"Agent object initialized: {self.agent_name} (ID: {self.agent_id}). Call initialize() for DB registration."
+        )
+
+    async def initialize(self):
+        """
+        Asynchronously initializes the agent, including registering it with the protocol
+        (which handles database persistence).
+        This method should be called and awaited after agent object creation.
+        """
+        if self.protocol:
+            try:
+                await self.protocol.register_agent(
+                    agent_id=str(self.agent_id),
+                    agent_type=self.agent_type,
+                    agent_name=self.agent_name,
+                    agent_role=self.agent_role,
+                    capabilities=self.capabilities,
+                    system_prompt=self.system_prompt,
+                    extra_data=self.extra_data,
+                )
+                # Log agent creation (or existence check) via ActivityLogger AFTER protocol registration attempt
+                # The protocol.register_agent now logs if it creates or finds an existing agent.
+                # We can add a BaseAgent specific log here confirming its own initialization completion.
+                await self.activity_logger.log_activity(
+                    activity_type="agent_initialized_and_registered",
+                    description=f"Agent {self.agent_name} completed async initialization and protocol registration.",
+                    category=ActivityCategory.SYSTEM,
+                    level=ActivityLevel.INFO,
+                    details={
+                        "agent_id": str(self.agent_id),
+                        "agent_type": self.agent_type,
+                    },
+                )
+                logger.info(
+                    f"Agent {self.agent_name} (ID: {self.agent_id}) async initialization complete and registered with protocol."
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error during agent {self.agent_id} async initialization (protocol registration): {str(e)}",
+                    exc_info=True,
+                )
+                await self.activity_logger.log_error(
+                    error_type="AgentInitializationError",
+                    description=f"Failed during async initialization/protocol registration for agent {self.agent_id}",
+                    exception=e,
+                    severity=ActivityLevel.CRITICAL,
+                )
+                raise  # Re-raise the error so the caller knows initialization failed
+        else:
+            logger.warning(
+                f"Agent {self.agent_id} has no Protocol. Skipping protocol registration."
+            )
+
+    # --- Start: VectorMemory Integration Methods ---
+    async def store_memory_item(self, item: MemoryItem) -> Optional[List[uuid.UUID]]:
+        """Store a MemoryItem using the agent's VectorMemory."""
+        return await store_memory_item_logic(self, item)
+
+    async def retrieve_memories(
+        self,
+        query_text: str,
+        category: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        limit: int = 5,
+    ) -> List[MemoryItem]:
+        """Retrieve memories using the agent's VectorMemory."""
+        return await retrieve_memories_logic(self, query_text, category, tags, limit)
+
+    # --- End: VectorMemory Integration Methods ---
 
     async def think(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -134,54 +217,7 @@ class BaseAgent:
         Returns:
             Dictionary containing the results of the thinking process
         """
-        start_time = time.time()
-
-        try:
-            # Log the start of thinking
-            await self.log_activity(
-                activity_type="thinking_started",
-                description=f"Started thinking process with context: {context.get('summary', 'No summary')}",
-                input_data={
-                    "context_size": len(str(context)),
-                    "context_type": context.get("type", "unknown"),
-                },
-            )
-
-            # Implement actual thinking in subclasses
-            # This default implementation just echoes the input
-            result = {
-                "thought_process": "Default thinking process - override in subclass",
-                "decision": "No decision made",
-                "rationale": "Base agent has no specialized thinking capabilities",
-                "input": context,
-            }
-
-            # Log completion of thinking
-            execution_time = time.time() - start_time
-            self._record_timing("think", execution_time)
-
-            await self.log_activity(
-                activity_type="thinking_completed",
-                description=f"Completed thinking process in {execution_time:.2f}s",
-                input_data={
-                    "execution_time_ms": int(execution_time * 1000),
-                    "decision": result.get("decision"),
-                },
-            )
-
-            return result
-        except Exception as e:
-            execution_time = time.time() - start_time
-            await self.log_activity(
-                activity_type="thinking_error",
-                description=f"Error during thinking process: {str(e)}",
-                input_data={
-                    "error": str(e),
-                    "execution_time_ms": int(execution_time * 1000),
-                    "traceback": logging.traceback.format_exc(),
-                },
-            )
-            raise
+        return await think_logic(self, context)
 
     async def send_message(
         self,
@@ -192,10 +228,11 @@ class BaseAgent:
         meeting_id: Optional[uuid.UUID] = None,
         parent_message_id: Optional[uuid.UUID] = None,
         context_vector=None,
+        conversation_id: Optional[uuid.UUID] = None,
         extra_data: Optional[Dict[str, Any]] = None,
-    ) -> uuid.UUID:
+    ) -> Optional[str]:
         """
-        Send a message to another agent.
+        Send a message to another agent using the Communication Protocol.
 
         Args:
             receiver_id: UUID of the receiving agent
@@ -208,171 +245,35 @@ class BaseAgent:
             extra_data: Optional additional metadata for the message
 
         Returns:
-            UUID of the created message
+            UUID of the created message if successful, None otherwise.
         """
-        if not self.db_session:
-            logger.warning("No database session provided, cannot send message")
-            return None
+        return await send_message_logic(
+            self,
+            receiver_id,
+            content,
+            message_type,
+            task_id,
+            meeting_id,
+            parent_message_id,
+            context_vector,
+            conversation_id,
+            extra_data,
+        )
 
-        message_id = uuid.uuid4()
-
-        try:
-            # Create message record
-            message_data = {
-                "message_id": message_id,
-                "sender_id": self.agent_id,
-                "content": content,
-                "message_type": message_type,
-                "task_id": task_id,
-                "meeting_id": meeting_id,
-                "parent_message_id": parent_message_id,
-                "context_vector": context_vector,
-                "extra_data": extra_data or {},
-            }
-
-            stmt = insert(AgentMessage).values(**message_data)
-            await self.db_session.execute(stmt)
-            await self.db_session.commit()
-
-            # Log the message sending
-            await self.log_activity(
-                activity_type="message_sent",
-                description=f"Sent {message_type} message to agent {receiver_id}",
-                input_data={
-                    "message_id": str(message_id),
-                    "receiver_id": str(receiver_id),
-                    "message_type": message_type,
-                    "content_summary": (
-                        content[:100] + "..." if len(content) > 100 else content
-                    ),
-                },
-            )
-
-            logger.info(
-                f"Message sent: {message_id} from {self.agent_id} to {receiver_id}"
-            )
-            return message_id
-        except Exception as e:
-            await self.db_session.rollback()
-            logger.error(f"Error sending message: {str(e)}")
-
-            # Try recovery
-            return await self._with_retry(
-                self.send_message,
-                receiver_id=receiver_id,
-                content=content,
-                message_type=message_type,
-                task_id=task_id,
-                meeting_id=meeting_id,
-                parent_message_id=parent_message_id,
-                context_vector=context_vector,
-                extra_data=extra_data,
-            )
-
-    async def receive_message(self, message_id: uuid.UUID) -> Dict[str, Any]:
+    async def receive_message(self, message_id: uuid.UUID) -> Optional[Message]:
         """
-        Process a received message.
+        Process a received message by fetching it via the Communication Protocol.
+        TODO: This method currently fetches a message by ID. For a reactive system,
+        agents should ideally process messages delivered to them (e.g., via a Celery task queue)
+        rather than polling or being explicitly told to fetch by ID.
 
         Args:
             message_id: UUID of the message to process
 
         Returns:
-            Dictionary with processing results
+            The Message object if found and processed, None otherwise.
         """
-        if not self.db_session:
-            logger.warning("No database session provided, cannot receive message")
-            return {"success": False, "error": "No database session"}
-
-        try:
-            # Fetch the message
-            query = select(AgentMessage).where(AgentMessage.message_id == message_id)
-            result = await self.db_session.execute(query)
-            message = result.scalar_one_or_none()
-
-            if not message:
-                logger.warning(f"Message {message_id} not found")
-                return {"success": False, "error": "Message not found"}
-
-            # Log message receipt
-            await self.log_activity(
-                activity_type="message_received",
-                description=f"Received {message.message_type} message from agent {message.sender_id}",
-                input_data={
-                    "message_id": str(message_id),
-                    "sender_id": str(message.sender_id),
-                    "message_type": message.message_type,
-                    "content_summary": (
-                        message.content[:100] + "..."
-                        if len(message.content) > 100
-                        else message.content
-                    ),
-                },
-            )
-
-            # Process message - to be implemented by subclasses
-            return {
-                "success": True,
-                "message": message,
-                "response": "Message received by base agent (no processing implemented)",
-            }
-        except Exception as e:
-            logger.error(f"Error receiving message: {str(e)}")
-
-            # Log error
-            await self.log_activity(
-                activity_type="message_error",
-                description=f"Error processing message {message_id}",
-                input_data={"error": str(e)},
-            )
-
-            return {"success": False, "error": str(e)}
-
-    async def log_activity(
-        self,
-        activity_type: str,
-        description: str,
-        input_data: Optional[Dict[str, Any]] = None,
-    ) -> uuid.UUID:
-        """
-        Log an agent activity to the database.
-
-        Args:
-            activity_type: Type of activity being logged
-            description: Human-readable description of the activity
-            input_data: Additional structured details about the activity
-
-        Returns:
-            UUID of the created activity record
-        """
-        if not self.db_session:
-            logger.info(f"Activity log (not stored): {activity_type} - {description}")
-            return None
-
-        activity_id = uuid.uuid4()
-        timestamp = datetime.utcnow()
-
-        try:
-            # Create activity record
-            activity_data = {
-                "activity_id": activity_id,
-                "agent_id": self.agent_id,
-                "timestamp": timestamp,
-                "activity_type": activity_type,
-                "description": description,
-                "input_data": input_data or {},
-            }
-
-            stmt = insert(AgentActivity).values(**activity_data)
-            await self.db_session.execute(stmt)
-            await self.db_session.commit()
-
-            return activity_id
-        except Exception as e:
-            await self.db_session.rollback()
-            logger.error(f"Error logging activity: {str(e)}")
-
-            # We don't retry activity logging to avoid infinite loops
-            return None
+        return await receive_message_logic(self, message_id)
 
     async def _with_retry(self, func, *args, **kwargs) -> Any:
         """
@@ -409,28 +310,6 @@ class BaseAgent:
         # If we get here, all retries failed
         logger.error(f"All {self.max_retries} retry attempts failed: {str(last_error)}")
         raise last_error
-
-    def _record_timing(self, operation: str, duration: float) -> None:
-        """
-        Record timing information for performance tracking.
-
-        Args:
-            operation: Name of the operation
-            duration: Duration in seconds
-        """
-        if operation not in self.operation_timings:
-            self.operation_timings[operation] = {
-                "count": 0,
-                "total_time": 0,
-                "min_time": float("inf"),
-                "max_time": 0,
-            }
-
-        stats = self.operation_timings[operation]
-        stats["count"] += 1
-        stats["total_time"] += duration
-        stats["min_time"] = min(stats["min_time"], duration)
-        stats["max_time"] = max(stats["max_time"], duration)
 
     def _setup_logging(self) -> None:
         """Configure logging for the agent."""

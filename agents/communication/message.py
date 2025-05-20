@@ -41,6 +41,9 @@ class Message:
         in_reply_to: ID of the message this is a reply to, if any
         metadata: Additional metadata about the message
         created_at: When the message was created
+        task_id: Optional ID of a related task
+        meeting_id: Optional ID of a related meeting
+        context_vector: Optional vector embedding of the message content
     """
 
     def __init__(
@@ -54,6 +57,9 @@ class Message:
         metadata: Optional[Dict[str, Any]] = None,
         message_id: Optional[str] = None,
         created_at: Optional[datetime] = None,
+        task_id: Optional[str] = None,
+        meeting_id: Optional[str] = None,
+        context_vector: Optional[List[float]] = None,
     ):
         """
         Initialize a new message.
@@ -68,6 +74,9 @@ class Message:
             metadata: Optional additional metadata for the message
             message_id: Optional message ID (generated if not provided)
             created_at: Optional timestamp (current time if not provided)
+            task_id: Optional ID of a related task
+            meeting_id: Optional ID of a related meeting
+            context_vector: Optional vector embedding of the message content
         """
         self.message_id = message_id or str(uuid.uuid4())
         self.conversation_id = conversation_id or str(uuid.uuid4())
@@ -85,6 +94,11 @@ class Message:
         self.metadata = metadata or {}
         self.created_at = created_at or datetime.utcnow()
 
+        # Store new direct parameters
+        self.task_id = task_id
+        self.meeting_id = meeting_id
+        self.context_vector = context_vector
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert the message to a dictionary.
@@ -92,7 +106,7 @@ class Message:
         Returns:
             Dictionary representation of the message
         """
-        return {
+        data = {
             "message_id": self.message_id,
             "conversation_id": self.conversation_id,
             "sender_id": self.sender_id,
@@ -102,7 +116,12 @@ class Message:
             "in_reply_to": self.in_reply_to,
             "metadata": self.metadata,
             "created_at": self.created_at.isoformat(),
+            "task_id": self.task_id,
+            "meeting_id": self.meeting_id,
+            "context_vector": self.context_vector,
         }
+        # Filter out None values for cleaner output, especially for optional fields
+        return {k: v for k, v in data.items() if v is not None}
 
     def to_json(self) -> str:
         """
@@ -138,6 +157,9 @@ class Message:
             in_reply_to=data.get("in_reply_to"),
             metadata=data.get("metadata"),
             created_at=data.get("created_at"),
+            task_id=data.get("task_id"),
+            meeting_id=data.get("meeting_id"),
+            context_vector=data.get("context_vector"),
         )
 
     @classmethod
