@@ -39,7 +39,7 @@ from .base_agent_functions import (
     receive_message_logic,
 )
 
-from agents.db.postgres import PostgresClient
+from .db.postgres import PostgresClient
 
 logger = logging.getLogger(__name__)
 

@@ -5,31 +5,19 @@ Responsible for requirement analysis, user story creation, and feature prioritiz
 """
 
 import uuid
-import json
 
-# import asyncio # Keep for type hints if needed
 from typing import Dict, List, Any, Optional, Union
 
-# from datetime import datetime # No longer used directly here
-
-# from sqlalchemy import select, insert # No longer used directly here
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.base_agent import BaseAgent
 from agents.logging.activity_logger import (
-    # ActivityLogger, # Already initialized in BaseAgent
-    # ActivityCategory, # Used in logic files
     ActivityLevel,
-    # AgentActivity, # Not directly used here
 )
 from agents.llm import VertexGeminiProvider
-from agents.memory.vector_memory import (
-    VectorMemory,
-)  # Keep MemoryItem if used as type hint
+from agents.memory.vector_memory import VectorMemory
 
-# from infra.db.models import RequirementsArtifact, ProjectVision, ProjectRoadmap # Used in logic files
-# from infra.db.models.artifacts import UserStoryArtifact, FeatureArtifact # Used in logic files
-from infra.db.models import ProjectRoadmap  # For generate_roadmap return type
+from infra.db.models import ProjectRoadmap
 
 from agents.db.postgres import PostgresClient
 
