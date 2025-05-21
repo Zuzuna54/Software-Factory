@@ -2,30 +2,33 @@
 Logic for the articulate_vision method of the ProductManagerAgent.
 """
 
+import select
 import uuid
 import json
 from typing import Dict, Any, Optional
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from agents.logging.activity_logger import ActivityCategory, ActivityLevel
-from infra.db.models import ProjectVision  # Assuming this is the correct model
+from infra.db.models import Project
+from agents.logging import ActivityCategory, ActivityLevel
+from infra.db.models import ProjectVision
 
 
 async def articulate_vision_logic(
     agent: Any,  # ProductManagerAgent instance
     project_id: uuid.UUID,
-    project_description: str,
     context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     operation_name = "articulate_vision"
     agent.activity_logger.start_timer(operation_name)
     execution_time_s = 0  # Initialize execution_time_s
     try:
+
+        project = await agent.db_session.execute(
+            select(Project).where(Project.project_id == project_id)
+        )
+        project_description = project.description
         await agent.activity_logger.log_activity(
             activity_type="vision_articulation_started",
             description=f"Started articulating vision for project {project_id}",
-            category=ActivityCategory.THINKING,
+            category=ActivityCategory.SYSTEM,
             level=ActivityLevel.INFO,
             details={
                 "project_id": str(project_id),
@@ -90,25 +93,9 @@ async def articulate_vision_logic(
                 },
             )
 
-        await agent.activity_logger.log_activity(
-            activity_type="debug_vision_content_before_save",
-            description=f"Generated vision content for project {project_id}",
-            category=ActivityCategory.SYSTEM,
-            level=ActivityLevel.INFO,
-            details={
-                "vision_dict": vision,
-                "statement_to_be_saved": vision.get(
-                    "vision_statement", "Vision not articulated."
-                ),
-            },
-        )
-
         if agent.db_session:
             project_vision_data = ProjectVision(
                 title=f"Project Vision for {project_id}",
-                # The original model had 'description', but the LLM prompt and parsing logic focuses on 'vision_statement'
-                # If 'description' is a general text field for the vision, this needs clarification.
-                # For now, using vision_statement for description if a specific 'description' field isn't in the LLM output.
                 description=vision.get(
                     "vision_statement",
                     "No explicit description provided in vision object.",
@@ -139,7 +126,7 @@ async def articulate_vision_logic(
         await agent.activity_logger.log_activity(
             activity_type="vision_articulation_completed",
             description=f"Completed vision articulation for project {project_id}",
-            category=ActivityCategory.THINKING,
+            category=ActivityCategory.SYSTEM,
             level=ActivityLevel.INFO,
             details={
                 "project_id": str(project_id),

@@ -5,14 +5,9 @@ Logic for the define_acceptance_criteria method of the ProductManagerAgent.
 import uuid
 import json
 from typing import List, Dict, Any
-
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from agents.logging.activity_logger import ActivityCategory, ActivityLevel
-from infra.db.models import (
-    UserStoryArtifact,  # Changed from RequirementsArtifact
-)
+from agents.logging import ActivityCategory, ActivityLevel
+from infra.db.models import UserStoryArtifact
 
 
 async def define_acceptance_criteria_logic(
@@ -27,7 +22,7 @@ async def define_acceptance_criteria_logic(
         await agent.activity_logger.log_activity(
             activity_type="acceptance_criteria_definition_started",
             description=f"Started defining acceptance criteria for user story {user_story_id}",
-            category=ActivityCategory.THINKING,
+            category=ActivityCategory.SYSTEM,
             level=ActivityLevel.INFO,
             details={
                 "user_story_id": str(user_story_id),
@@ -48,7 +43,7 @@ async def define_acceptance_criteria_logic(
         Format your response as a JSON array of acceptance criteria objects.
         """
 
-        generated_text, llm_metadata = await agent.llm_provider.generate_text(prompt)
+        generated_text = await agent.llm_provider.generate_text(prompt)
         try:
             acceptance_criteria = json.loads(generated_text)
             if not isinstance(acceptance_criteria, list):
@@ -66,43 +61,20 @@ async def define_acceptance_criteria_logic(
             )
 
         if agent.db_session:
-            # Assuming UserStoryArtifact is stored in RequirementsArtifact table or a related one
-            # If UserStoryArtifact has its own model, replace RequirementsArtifact here
             query = select(UserStoryArtifact).where(
                 UserStoryArtifact.artifact_id == user_story_id
             )
             result = await agent.db_session.execute(query)
             user_story_artifact = result.scalar_one_or_none()
             if user_story_artifact:
-                # Assuming acceptance_criteria is a field in the artifact model (e.g. JSONB)
-                if hasattr(
-                    user_story_artifact, "acceptance_criteria"
-                ):  # Check if the attribute exists
-                    user_story_artifact.acceptance_criteria = acceptance_criteria
-                elif hasattr(user_story_artifact, "extra_data") and isinstance(
-                    user_story_artifact.extra_data, dict
-                ):  # Fallback to extra_data if acceptance_criteria field doesn't exist or is None
-                    user_story_artifact.extra_data["acceptance_criteria"] = (
-                        acceptance_criteria
-                    )
-                else:  # Fallback: log a warning if no place to store
-                    await agent.activity_logger.log_activity(
-                        activity_type="warning_no_field_for_acceptance_criteria",
-                        description=f"User story artifact {user_story_id} does not have a standard field (extra_data or acceptance_criteria) to store acceptance criteria.",
-                        category=ActivityCategory.DATABASE,
-                        level=ActivityLevel.WARNING,
-                        details={
-                            "user_story_id": str(user_story_id),
-                            "data_to_store": acceptance_criteria,
-                        },
-                    )
+                user_story_artifact.acceptance_criteria = acceptance_criteria
                 await agent.db_session.commit()
             else:
                 await agent.activity_logger.log_activity(
                     activity_type="acceptance_criteria_warning_user_story_not_found",
                     description=f"User story {user_story_id} not found in database when trying to add acceptance criteria.",
-                    category=ActivityCategory.DATABASE,
-                    level=ActivityLevel.WARNING,
+                    category=ActivityCategory.SYSTEM,
+                    level=ActivityLevel.ERROR,
                     details={"user_story_id": str(user_story_id)},
                 )
 
@@ -112,7 +84,7 @@ async def define_acceptance_criteria_logic(
         await agent.activity_logger.log_activity(
             activity_type="acceptance_criteria_definition_completed",
             description=f"Completed acceptance criteria for user story {user_story_id}",
-            category=ActivityCategory.THINKING,
+            category=ActivityCategory.SYSTEM,
             level=ActivityLevel.INFO,
             details={
                 "user_story_id": str(user_story_id),
@@ -131,7 +103,8 @@ async def define_acceptance_criteria_logic(
             error_type="AcceptanceCriteriaDefinitionError",
             description=f"Error during acceptance criteria definition for user story {user_story_id}: {str(e)}",
             exception=e,
-            severity=ActivityLevel.ERROR,
+            category=ActivityCategory.SYSTEM,
+            level=ActivityLevel.ERROR,
             context={
                 "user_story_id": str(user_story_id),
                 "execution_time_ms_before_error": int(execution_time_s * 1000),

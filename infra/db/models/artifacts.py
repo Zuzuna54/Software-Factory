@@ -239,6 +239,9 @@ class ProjectRoadmap(Artifact):
     status = Column(String(50), nullable=False, default="planning")
     timeline_start_date = Column(DateTime(timezone=True), nullable=True)
     timeline_end_date = Column(DateTime(timezone=True), nullable=True)
+    phases = Column(JSONB, nullable=True)
+    deliverables = Column(JSONB, nullable=True)
+    risks = Column(JSONB, nullable=True)
 
 
 class CodebaseAnalysis(Base):

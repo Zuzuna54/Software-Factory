@@ -41,7 +41,7 @@ async def parse_llm_json_output(
                 activity_logger.log_activity(
                     activity_type=f"warning_llm_json_unexpected_type_{calling_method_name}",
                     description=f"LLM JSON output for {calling_method_name} was parsed but is not of expected type {expected_type.__name__}. Actual type: {type(parsed_output).__name__}.",
-                    category=ActivityCategory.WARNING,
+                    category=ActivityCategory.SYSTEM,
                     level=ActivityLevel.WARNING,
                     details={
                         "raw_json_string": json_string[:500],  # Log a snippet
@@ -60,7 +60,8 @@ async def parse_llm_json_output(
                 error_type=f"LLMJSONParseError_{calling_method_name}",
                 description=f"Failed to parse LLM response as JSON in {calling_method_name}: {str(e)}",
                 exception=e,
-                severity=ActivityLevel.ERROR,
+                category=ActivityCategory.SYSTEM,
+                level=ActivityLevel.ERROR,
                 context={
                     "raw_response": json_string,
                     "llm_metadata": llm_metadata,
@@ -78,7 +79,8 @@ async def parse_llm_json_output(
                 error_type=f"LLMJSONParseUnexpectedError_{calling_method_name}",
                 description=f"Unexpected error during LLM JSON parsing in {calling_method_name}: {str(e_unexpected)}",
                 exception=e_unexpected,
-                severity=ActivityLevel.ERROR,
+                category=ActivityCategory.SYSTEM,
+                level=ActivityLevel.ERROR,
                 context={
                     "raw_response": json_string,
                     "llm_metadata": llm_metadata,

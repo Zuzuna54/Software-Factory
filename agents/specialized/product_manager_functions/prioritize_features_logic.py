@@ -37,7 +37,7 @@ async def prioritize_features_logic(
         await agent.activity_logger.log_activity(
             activity_type="feature_prioritization_started",
             description=f"Started prioritizing features for project {project_id}",
-            category=ActivityCategory.THINKING,
+            category=ActivityCategory.SYSTEM,
             level=ActivityLevel.INFO,
             details={
                 "project_id": str(project_id),
@@ -67,7 +67,7 @@ async def prioritize_features_logic(
                     await agent.activity_logger.log_activity(
                         activity_type="warning_ambiguous_id_in_features_arg",
                         description=f"Feature object in features_arg for project {project_id} has 'id' but not 'artifact_id'. Using 'id'. Object type: {type(item_in_arg)}",
-                        category=ActivityCategory.WARNING,
+                        category=ActivityCategory.SYSTEM,
                         level=ActivityLevel.WARNING,
                         details={
                             "project_id": str(project_id),
@@ -83,7 +83,7 @@ async def prioritize_features_logic(
                         await agent.activity_logger.log_activity(
                             activity_type="warning_invalid_uuid_in_features_arg",
                             description=f"Invalid UUID string '{item_id_str}' encountered in features_arg for project {project_id}. Skipping.",
-                            category=ActivityCategory.WARNING,
+                            category=ActivityCategory.SYSTEM,
                             level=ActivityLevel.WARNING,
                             details={
                                 "project_id": str(project_id),
@@ -95,7 +95,7 @@ async def prioritize_features_logic(
                 await agent.activity_logger.log_activity(
                     activity_type="debug_retrieving_features_from_db",
                     description=f"Retrieving FeatureArtifacts from DB based on {len(feature_ids_from_arg)} IDs from features_arg for project {project_id}",
-                    category=ActivityCategory.DATABASE,
+                    category=ActivityCategory.SYSTEM,
                     details={
                         "project_id": str(project_id),
                         "queried_ids_count": len(feature_ids_from_arg),
@@ -116,14 +116,14 @@ async def prioritize_features_logic(
                 await agent.activity_logger.log_activity(
                     activity_type="debug_features_retrieved_from_db_for_prioritization",
                     description="Features retrieved from DB based on features_arg IDs for prioritization",
-                    category=ActivityCategory.DATABASE,
+                    category=ActivityCategory.SYSTEM,
                     details={
                         "project_id": str(project_id),
                         "retrieved_count": len(features_from_db),
                         "queried_ids": [str(fid) for fid in feature_ids_from_arg],
                         "status_filter": "pending",
                     },
-                    level=ActivityLevel.DEBUG,
+                    level=ActivityLevel.INFO,
                 )
         elif agent.db_session:  # if features_arg is None, fetch all pending for project
             features_from_db = (
@@ -142,7 +142,7 @@ async def prioritize_features_logic(
             await agent.activity_logger.log_activity(
                 activity_type="feature_prioritization_completed_no_features",
                 description=f"No features found/provided to prioritize for project {project_id}",
-                category=ActivityCategory.THINKING,
+                category=ActivityCategory.SYSTEM,
                 level=ActivityLevel.INFO,
                 details={"project_id": str(project_id)},
             )

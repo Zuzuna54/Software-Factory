@@ -2,20 +2,17 @@
 Logic for the create_user_stories method of the ProductManagerAgent.
 """
 
+import select
 import uuid
 import json
 from typing import Dict, List, Any, Optional
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from agents.logging.activity_logger import ActivityCategory, ActivityLevel
-from infra.db.models.artifacts import UserStoryArtifact
+from agents.logging import ActivityCategory, ActivityLevel
+from infra.db.models import RequirementsArtifact, UserStoryArtifact
 from .priority_to_int import priority_to_int
 
 
 async def create_user_stories_logic(
     agent: Any,  # ProductManagerAgent instance
-    requirements: Dict[str, Any],
     project_id: uuid.UUID,
     epic_id: Optional[uuid.UUID] = None,
 ) -> List[Dict[str, Any]]:
@@ -23,10 +20,16 @@ async def create_user_stories_logic(
     agent.activity_logger.start_timer(operation_name)
     execution_time_s = 0  # Initialize execution_time_s
     try:
+
+        requirements = await agent.db_session.execute(
+            select(RequirementsArtifact).where(
+                RequirementsArtifact.project_id == project_id,
+            )
+        )
         await agent.activity_logger.log_activity(
             activity_type="user_story_creation_started",
             description=f"Started creating user stories for project {project_id}",
-            category=ActivityCategory.THINKING,
+            category=ActivityCategory.SYSTEM,
             level=ActivityLevel.INFO,
             details={
                 "project_id": str(project_id),
@@ -36,6 +39,7 @@ async def create_user_stories_logic(
                 "epic_id": str(epic_id) if epic_id else None,
             },
         )
+
         prompt = f"""
         Convert the following structured requirements into well-formed user stories
         following the format: "As a [type of user], I want [goal] so that [benefit]"
@@ -56,9 +60,17 @@ async def create_user_stories_logic(
         Focus on delivering value to end users.
 
         Format your response as a JSON array of user story objects.
+        Each user story object should have the following fields:
+        - title: string
+        - description: string
+        - user_type: string
+        - goal: string
+        - benefit: string
+        - notes: string
+        Return only the JSON array, nothing else.
         """
 
-        generated_text, llm_metadata = await agent.llm_provider.generate_text(prompt)
+        generated_text = await agent.llm_provider.generate_text(prompt)
         try:
             user_stories = json.loads(generated_text)
             if not isinstance(user_stories, list):
@@ -108,7 +120,7 @@ async def create_user_stories_logic(
         await agent.activity_logger.log_activity(
             activity_type="user_story_creation_completed",
             description=f"Completed user story creation for project {project_id}",
-            category=ActivityCategory.THINKING,
+            category=ActivityCategory.SYSTEM,
             level=ActivityLevel.INFO,
             details={
                 "project_id": str(project_id),
@@ -128,7 +140,8 @@ async def create_user_stories_logic(
             error_type="UserStoryCreationError",
             description=f"Error during user story creation for project {project_id}: {str(e)}",
             exception=e,
-            severity=ActivityLevel.ERROR,
+            category=ActivityCategory.SYSTEM,
+            level=ActivityLevel.ERROR,
             context={
                 "project_id": str(project_id),
                 "epic_id": str(epic_id) if epic_id else None,
