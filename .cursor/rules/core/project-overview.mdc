@@ -1,0 +1,79 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Overview
+
+## Objective
+
+Provide a comprehensive understanding of the Software Factory project architecture, technology stack, and development principles to ensure consistent implementation across the autonomous multi-agent development team.
+
+## System Architecture
+
+You are coding inside a fully autonomous multi-agent system whose **source of truth is this monorepo**.
+
+### Technology Stack
+
+* **Languages:** 
+  - Backend: Python 3.12
+  - Frontend: TypeScript 5.5 (Next.js 14)
+
+* **Frameworks:** 
+  - Backend: FastAPI, SQLAlchemy 2.0 (async engine), Celery 5
+  - Frontend: React 19-RC, Tailwind, shadcn/ui
+
+* **Database:** 
+  - PostgreSQL 16
+  - Vector storage: `pgvector` for embeddings, store as `VECTOR(3072)`
+
+* **AI Integration:** 
+  - Embeddings: `gemini-embedding-exp-03-07` via Vertex AI
+  - Configuration: `location=us-central1`, `taskType="RETRIEVAL_DOCUMENT"` (default)
+
+## Core Development Principles
+
+1. **Modular Design**
+   - Create small, single-purpose modules (≤ 40 LOC each)
+   - Maintain clear separation of concerns between components
+   - Enforce boundaries between different domains
+
+2. **Pragmatic Implementation**
+   - No speculative abstractions (adhere to KISS / YAGNI principles)
+   - Focus on solving the immediate problem efficiently
+   - Avoid premature optimization
+
+3. **Quality Assurance**
+   - All new code must ship with automated tests
+   - Backend: pytest coverage ≥ 90%
+   - Frontend: Jest coverage ≥ 90%
+
+4. **Performance Optimization**
+   - Prefer async I/O for all operations
+   - If blocking operations are necessary, run in a Celery task
+   - Profile performance-critical code paths
+
+5. **Change Management**
+   - Follow Conventional Commits format (`feat:`, `fix:`, etc.)
+   - Include detailed descriptions explaining the "why" not just the "what"
+   - Reference issue numbers in all commits
+
+## Verification Checklist
+
+- [ ] Code follows modular design principles (≤ 40 LOC per function)
+- [ ] Linting passes with zero warnings (`ruff` for Python, `eslint --max-warnings=0` for TypeScript)
+- [ ] All tests are passing (`pytest -q` or `pnpm test`)
+- [ ] No TODO/FIXME strings remain in touched files
+- [ ] Commits follow Conventional Commits format
+
+## Related Rules
+
+- @simplicity-first for detailed guidance on code simplicity
+- @dependency-audit for managing package dependencies
+- @docs-guidelines for documentation standards
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced rule with better structure and cross-references

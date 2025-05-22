@@ -1,0 +1,87 @@
+---
+title: Software Factory - Development Lifecycle
+---
+flowchart TD
+    subgraph "Requirements & Planning"
+        PR[Product Requirements]
+        PB[Product Backlog]
+        SP[Sprint Planning]
+        ST[Sprint Backlog & Tasks]
+       
+        PR --> PB
+        PB --> SP
+        SP --> ST
+    end
+   
+    subgraph "Design & Architecture"
+        AD[Architecture Design]
+        ER[Entity Relationship]
+        API[API Design]
+        UI[UI/UX Design]
+       
+        ST --> AD
+        ST --> ER
+        ST --> API
+        ST --> UI
+    end
+   
+    subgraph "Development"
+        FE[Frontend Implementation]
+        BE[Backend Implementation]
+        CR[Code Review]
+        RW[Rework & Refinement]
+       
+        UI --> FE
+        API --> BE
+        FE --> CR
+        BE --> CR
+        CR -->|Changes needed| RW
+        RW --> CR
+    end
+   
+    subgraph "Testing"
+        UT[Unit Testing]
+        IT[Integration Testing]
+        ET[End-to-End Testing]
+       
+        CR -->|Approved| UT
+        UT --> IT
+        IT --> ET
+    end
+   
+    subgraph "Deployment & Operations"
+        MR[Merge to Main]
+        CI[Continuous Integration]
+        CD[Continuous Deployment]
+        Mon[Monitoring]
+       
+        ET -->|Tests pass| MR
+        MR --> CI
+        CI --> CD
+        CD --> Mon
+    end
+   
+    subgraph "Feedback & Iteration"
+        FR[Feature Review]
+        Retro[Sprint Retrospective]
+        NextSP[Next Sprint Planning]
+       
+        Mon --> FR
+        FR --> Retro
+        Retro --> NextSP
+        NextSP -.-> SP
+    end
+   
+    classDef planning fill:#f9f,stroke:#333,stroke-width:1px
+    classDef design fill:#bbf,stroke:#333,stroke-width:1px
+    classDef development fill:#bfb,stroke:#333,stroke-width:1px
+    classDef testing fill:#ff9,stroke:#333,stroke-width:1px
+    classDef deployment fill:#9cf,stroke:#333,stroke-width:1px
+    classDef feedback fill:#fc9,stroke:#333,stroke-width:1px
+   
+    class PR,PB,SP,ST planning
+    class AD,ER,API,UI design
+    class FE,BE,CR,RW development
+    class UT,IT,ET testing
+    class MR,CI,CD,Mon deployment
+    class FR,Retro,NextSP feedback

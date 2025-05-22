@@ -1,7 +1,7 @@
-from .product_manager import ProductManagerAgent
-from .scrum_master import ScrumMasterAgent
+"""
+Specialized agent implementations for the autonomous AI development team.
+"""
 
-__all__ = [
-    "ProductManagerAgent",
-    "ScrumMasterAgent",
-]
+from .product_manager import ProductManagerAgent
+
+__all__ = ["ProductManagerAgent"]

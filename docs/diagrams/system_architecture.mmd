@@ -1,0 +1,53 @@
+---
+title: Software Factory - System Architecture
+---
+flowchart TB
+    subgraph "AI Agent System"
+        AgentOrch[Agent Orchestration & Task Manager] --> AgentFramework[Core Agent Framework]
+        AgentFramework --> PM[Product Manager Agent]
+        AgentFramework --> SM[Scrum Master Agent]
+        AgentFramework --> FL[Frontend Lead Agent]
+        AgentFramework --> BL[Backend Lead Agent]
+        AgentFramework --> FD[Frontend Developer Agent]
+        AgentFramework --> BD[Backend Developer Agent]
+        AgentFramework --> QA[QA/Test Agent]
+        AgentFramework --> DO[DevOps/Infrastructure Agent]
+        AgentFramework --> DBA[Database Administrator Agent]
+        AgentFramework --> UX[UX/UI Designer Agent]
+    end
+
+    subgraph "Shared Memory & Knowledge Base"
+        DB[(PostgreSQL Database)]
+        Vector[(pgvector Storage)]
+        KB[Knowledge Base]
+        KB --- DB
+        KB --- Vector
+    end
+
+    subgraph "Development Infrastructure"
+        Git[Git Repository]
+        CI[CI/Test Runner]
+        Deploy[Deployment Pipeline]
+    end
+
+    subgraph "External Services"
+        GCP[Google Cloud Platform]
+        LLM[LLM Provider - Gemini]
+    end
+
+    subgraph "User Interface"
+        Dashboard[Monitoring Dashboard]
+        CLI[Command-Line Interface]
+    end
+
+    AgentOrch --- DB
+    AgentOrch --- Git
+    AgentFramework --- LLM
+    BD --- Git
+    FD --- Git
+    CI --- Git
+    DO --- Deploy
+    Deploy --- GCP
+    DB --- DBA
+    Dashboard --- DB
+    CLI --- AgentOrch 

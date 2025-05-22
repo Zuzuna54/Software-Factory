@@ -1,0 +1,188 @@
+---
+description: Ensure consistent, reliable, and maintainable testing practices across the project to catch bugs early and prevent regressions while enabling safe refactoring and feature development.
+globs: 
+alwaysApply: false
+---
+# Testing Standards
+
+## Objective
+
+Ensure consistent, reliable, and maintainable testing practices across the project to catch bugs early and prevent regressions while enabling safe refactoring and feature development.
+
+## Testing Framework Standards
+
+### Backend Testing (Python)
+
+1. **Framework Selection**
+   - Use pytest as the primary testing framework
+   - Use pytest-asyncio for testing async code
+   - Use pytest-mock for mocking dependencies
+
+2. **Test Performance**
+   - Aim for deterministic tests (< 200 ms each)
+   - Group slower tests with markers for selective running
+   - Use fixtures to optimize test setup and teardown
+
+3. **Database Testing**
+   - Use in-memory SQLite or testcontainers for integration tests
+   - Apply transaction rollbacks for test isolation
+   - Reset sequences between test runs to maintain predictable IDs
+
+4. **Python Example**
+
+```python
+import pytest
+from app.models import User
+from app.services import UserService
+
+@pytest.fixture
+def mock_user():
+    return User(id=1, username="testuser", email="test@example.com")
+
+@pytest.fixture
+def user_service(db_session):
+    return UserService(db_session)
+
+def test_user_creation_success(user_service):
+    # Happy path test
+    new_user = user_service.create_user(
+        username="newuser",
+        email="new@example.com",
+        password="securepass123"
+    )
+    assert new_user.username == "newuser"
+    assert new_user.email == "new@example.com"
+    assert user_service.verify_password("securepass123", new_user.password_hash)
+
+def test_user_creation_duplicate_email(user_service, mock_user):
+    # Edge case test
+    with pytest.raises(ValueError) as excinfo:
+        user_service.create_user(
+            username="different",
+            email="test@example.com",  # Same as mock_user
+            password="securepass123"
+        )
+    assert "email already exists" in str(excinfo.value)
+```
+
+### Frontend Testing (TypeScript/React)
+
+1. **Framework Selection**
+   - Use Jest as the test runner
+   - Use @testing-library/react for component testing
+   - Use MSW (Mock Service Worker) for API mocking
+
+2. **Component Testing**
+   - Test components in isolation with proper mocks
+   - Focus on user interactions rather than implementation details
+   - Snapshot tests allowed only for presentational components
+
+3. **Frontend Example**
+
+```typescript
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { rest } from 'msw';
+import { setupServer } from 'msw/node';
+import UserProfile from './UserProfile';
+
+// Mock API server
+const server = setupServer(
+  rest.get('/api/user/:id', (req, res, ctx) => {
+    return res(
+      ctx.json({
+        id: '123',
+        name: 'Test User',
+        email: 'test@example.com'
+      })
+    );
+  })
+);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+// Happy path test
+test('renders user profile when API returns data', async () => {
+  render(<UserProfile userId="123" />);
+  
+  // Initially shows loading state
+  expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  
+  // Wait for data to load
+  await waitFor(() => screen.getByText('Test User'));
+  
+  expect(screen.getByText('Test User')).toBeInTheDocument();
+  expect(screen.getByText('test@example.com')).toBeInTheDocument();
+});
+
+// Edge case test
+test('shows error message when API fails', async () => {
+  server.use(
+    rest.get('/api/user/:id', (req, res, ctx) => {
+      return res(ctx.status(500));
+    })
+  );
+  
+  render(<UserProfile userId="123" />);
+  
+  await waitFor(() => screen.getByText(/error/i));
+  
+  expect(screen.getByText(/error/i)).toBeInTheDocument();
+  expect(screen.queryByText('Test User')).not.toBeInTheDocument();
+});
+```
+
+## Test Coverage Guidelines
+
+1. **Coverage Requirements**
+   - Aim for minimum 90% line coverage for new code
+   - Focus on logic coverage over simple getters/setters
+   - Prioritize critical paths and business logic
+
+2. **Required Test Types**
+   - Each new PR must include at least one **happy-path** test
+   - Each new PR must include at least one **edge-case** test
+   - Add regression tests for fixed bugs
+
+3. **Critical Areas**
+   - Authentication flows require 100% test coverage
+   - Data mutation operations require exhaustive testing
+   - API endpoints need tests for all response codes
+
+## Test Organization
+
+1. **Directory Structure**
+   - Backend: Place tests in a `tests` directory mirroring the application structure
+   - Frontend: Co-locate tests with components using `.test.tsx` or `.spec.tsx` suffix
+
+2. **Naming Conventions**
+   - Backend: Use `test_<module_name>.py` format
+   - Frontend: Use `<Component>.test.tsx` format
+   - Test functions: `test_should_do_something_when_condition()` format
+
+3. **Test Categories**
+   - Unit tests: Test individual functions or classes in isolation
+   - Integration tests: Test interactions between components
+   - E2E tests: Test complete user flows
+
+## Verification Checklist
+
+- [ ] All tests are deterministic (no flaky tests)
+- [ ] Each PR includes happy path and edge case tests
+- [ ] Test coverage meets minimum requirements
+- [ ] Mocks and fixtures are used appropriately
+- [ ] Tests run in < 200ms each (except integration/E2E)
+- [ ] Snapshot tests are only used for presentational components
+
+## Related Rules
+
+- @project-overview for overall project structure
+- @frontend-standards for frontend development patterns
+- @backend-standards for backend development patterns
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced with detailed testing standards, examples, and organization guidelines

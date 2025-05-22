@@ -1,0 +1,66 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Rule Title
+
+## Objective
+
+Clear statement of what the rule aims to achieve and why it matters. This should explain the purpose of the rule in 1-3 sentences.
+
+## Context
+
+Explain when and where this rule applies. Include information about the specific domain, file types, or situations where this guidance is relevant.
+
+## Mandatory Patterns
+
+### Pattern Category 1
+
+1. **First requirement**
+   - Specific guidance on implementation
+   - Reasoning behind the requirement
+   - Any exceptions or special cases
+
+2. **Second requirement**
+   - Specific guidance on implementation
+   - Reasoning behind the requirement
+   - Any exceptions or special cases
+
+### Pattern Category 2
+
+1. **First requirement in category 2**
+   - Specific guidance on implementation
+   - Reasoning behind the requirement
+   - Any exceptions or special cases
+
+## Examples
+
+### Good Example
+
+```
+// Good implementation example with comments explaining why it's good
+```
+
+### Bad Example
+
+```
+// Bad implementation example with comments explaining the issues
+```
+
+## Verification Checklist
+
+- [ ] First verification item - specific, actionable check
+- [ ] Second verification item - specific, actionable check
+- [ ] Third verification item - specific, actionable check
+
+## Related Rules
+
+- @rule-name-1 for related guidance on [topic]
+- @rule-name-2 for details on [another related topic]
+
+---
+
+## Changelog
+
+- v1.0.0 (YYYY-MM-DD): Initial version

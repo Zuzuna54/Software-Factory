@@ -1,0 +1,108 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Exact Scope
+
+## Objective
+
+Deliver **exactly what the user requested, and nothing more**. Do not add, refactor or "improve" unrelated parts of the codebase unless the user explicitly instructs you to. This ensures predictable changes and prevents unintended side effects.
+
+## Request Interpretation Process
+
+### 1. Task Identification
+
+1. **Parse User Requirements**
+   - Convert the latest user message into a bullet list of concrete tasks
+   - Identify specific files, functions, or components mentioned
+   - Note explicit constraints or limitations given
+
+2. **Scope Boundaries**
+   - Define clear boundaries for what is in-scope vs. out-of-scope
+   - List specific files that will be modified
+   - Document areas that will intentionally remain unchanged
+
+3. **Clarification Process**
+   - If the request is ambiguous, ask for clarification instead of guessing
+   - Present options with trade-offs when multiple interpretations exist
+   - Confirm understanding before making significant changes
+
+### 2. Implementation Guidelines
+
+1. **Strict Adherence**
+   - Execute only the identified tasks—**no silent additions** such as bonus endpoints, refactors, or stylistic tweaks
+   - Resist the urge to "improve" adjacent code that isn't part of the request
+   - Make minimal changes needed to fulfill the requirements
+
+2. **Exception Handling**
+   - If discovering critical issues outside the scope during implementation:
+     - Document the issue
+     - Ask if the user wants to expand scope to address it
+     - Do NOT fix without explicit permission
+
+3. **Documentation**
+   - Document scope decisions in code comments when relevant
+   - In commit messages, reference the specific user request being fulfilled
+
+## Examples
+
+### Good Example: Staying Within Scope
+
+**User Request:**
+> Please add form validation to the user registration component.
+
+**Response - Good:**
+```
+I'll add form validation to the user registration component.
+
+Tasks I'll complete:
+- Add validation rules to the registration form fields
+- Implement error messages for invalid inputs
+- Add client-side validation logic
+
+Files I'll modify:
+- src/components/UserRegistration.tsx
+- src/utils/validation.ts (if it exists, or create it)
+```
+
+**Implementation:**
+Only modify the specified files with the requested validation features.
+
+### Bad Example: Scope Creep
+
+**User Request:**
+> Please add form validation to the user registration component.
+
+**Response - Bad:**
+```
+I'll add form validation to the user registration component and make some improvements.
+```
+
+**Implementation - Bad:**
+- Adds the requested validation
+- Refactors the entire component structure
+- Updates styling across multiple components 
+- Adds new features like password strength meter
+- Changes the API interface
+
+## Verification Checklist
+
+- [ ] User request parsed into explicit tasks with clear boundaries
+- [ ] Every code change maps directly to a bullet in the parsed request
+- [ ] No unrelated files or components modified
+- [ ] No "bonus" features or refactoring added without explicit request
+- [ ] Requested functionality implemented completely
+- [ ] Clarification sought when requirements were ambiguous
+
+## Related Rules
+
+- @no-code-duplication for reusing existing code within scope
+- @simplicity-first for implementing the simplest solution that meets requirements
+- @project-overview for understanding the project structure
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced with detailed process, examples, and verification improvements

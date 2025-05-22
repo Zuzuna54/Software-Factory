@@ -1,0 +1,64 @@
+---
+title: Software Factory - Agent Communication Flow
+---
+sequenceDiagram
+    participant PM as Product Manager
+    participant SM as Scrum Master
+    participant FL as Frontend Lead
+    participant FD as Frontend Developer
+    participant BL as Backend Lead
+    participant BD as Backend Developer
+    participant QA as QA/Test
+    participant KB as Knowledge Base
+    
+    Note over PM,KB: Sprint Planning Phase
+    
+    PM->>KB: Store product requirements
+    PM->>SM: REQUEST: Plan sprint with requirements
+    SM->>KB: Retrieve product requirements
+    SM->>KB: Store sprint plan and tasks
+    
+    SM->>FL: INFORM: Frontend tasks assigned
+    SM->>BL: INFORM: Backend tasks assigned
+    
+    FL->>KB: Retrieve frontend requirements
+    FL->>FD: REQUEST: Implement frontend component
+    
+    BL->>KB: Retrieve backend requirements
+    BL->>BD: REQUEST: Implement backend API
+    
+    Note over PM,KB: Development Phase
+    
+    FD->>KB: Query design patterns and guidelines
+    BD->>KB: Query database schema and API specs
+    
+    FD->>KB: Store frontend implementation
+    FD->>FL: INFORM: Frontend implementation complete
+    
+    BD->>KB: Store backend implementation
+    BD->>BL: INFORM: Backend implementation complete
+    
+    FL->>FD: REQUEST: Address review comments
+    BL->>BD: CONFIRM: Backend implementation approved
+    
+    Note over PM,KB: Testing Phase
+    
+    FL->>QA: INFORM: Frontend ready for testing
+    BL->>QA: INFORM: Backend ready for testing
+    
+    QA->>KB: Retrieve requirements and acceptance criteria
+    QA->>KB: Query frontend and backend implementations
+    
+    QA->>FD: ALERT: Test failed with issue details
+    FD->>KB: Update implementation to fix issue
+    FD->>QA: INFORM: Fix implemented
+    
+    QA->>SM: INFORM: All tests passing
+    
+    Note over PM,KB: Review Phase
+    
+    SM->>PM: INFORM: Sprint features completed
+    PM->>KB: Retrieve implemented features
+    PM->>SM: CONFIRM: Features meet requirements
+    
+    SM->>KB: Update sprint status to complete 

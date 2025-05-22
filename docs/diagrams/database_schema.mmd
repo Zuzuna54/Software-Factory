@@ -1,0 +1,100 @@
+---
+title: Software Factory - Database Schema (Core Tables)
+---
+erDiagram
+    agents ||--o{ agent_activities : performs
+    agents ||--o{ agent_messages : sends
+    agents ||--o{ tasks : assigned
+    tasks ||--o{ agent_activities : generates
+    artifacts ||--o{ tasks : relates_to
+    
+    agents {
+        uuid agent_id PK
+        varchar agent_type
+        varchar agent_name
+        timestamp created_at
+        jsonb capabilities
+        boolean active
+    }
+    
+    agent_messages {
+        uuid message_id PK
+        timestamp timestamp
+        uuid sender_id FK
+        uuid receiver_id FK
+        varchar message_type
+        text content
+        uuid related_task_id FK
+        jsonb metadata
+        uuid parent_message_id FK
+        vector context_vector
+    }
+    
+    agent_activities {
+        uuid activity_id PK
+        uuid agent_id FK
+        timestamp timestamp
+        varchar activity_type
+        text description
+        text thought_process
+        jsonb input_data
+        jsonb output_data
+        text[] related_files
+        jsonb decisions_made
+        integer execution_time_ms
+    }
+    
+    artifacts {
+        uuid artifact_id PK
+        varchar artifact_type
+        varchar title
+        text content
+        timestamp created_at
+        uuid created_by FK
+        timestamp last_modified_at
+        uuid last_modified_by FK
+        uuid parent_id FK
+        varchar status
+        jsonb metadata
+        integer version
+        vector content_vector
+    }
+    
+    tasks {
+        uuid task_id PK
+        varchar title
+        text description
+        timestamp created_at
+        uuid created_by FK
+        uuid assigned_to FK
+        uuid sprint_id
+        integer priority
+        varchar status
+        float estimated_effort
+        float actual_effort
+        uuid[] dependencies
+        jsonb metadata
+        uuid[] related_artifacts
+    }
+    
+    meetings {
+        uuid meeting_id PK
+        varchar meeting_type
+        timestamp start_time
+        timestamp end_time
+        uuid[] participants
+        text summary
+        jsonb decisions
+        jsonb action_items
+    }
+    
+    meeting_conversations {
+        uuid conversation_id PK
+        uuid meeting_id FK
+        integer sequence_number
+        timestamp timestamp
+        uuid speaker_id FK
+        text message
+        varchar message_type
+        jsonb context
+    } 

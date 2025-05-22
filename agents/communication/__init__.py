@@ -1,5 +1,27 @@
-# agents/communication/__init__.py
+"""
+Communication protocol for agent-to-agent interactions.
+"""
 
-from .protocol import AgentMessage, MessageType, CommunicationProtocol
+from .message import (
+    Message,
+    MessageType,
+    create_request,
+    create_inform,
+    create_propose,
+    create_confirm,
+    create_alert,
+)
+from .protocol import Protocol
+from .conversation import Conversation
 
-__all__ = ["AgentMessage", "MessageType", "CommunicationProtocol"]
+__all__ = [
+    "Message",
+    "MessageType",
+    "Protocol",
+    "Conversation",
+    "create_request",
+    "create_inform",
+    "create_propose",
+    "create_confirm",
+    "create_alert",
+]

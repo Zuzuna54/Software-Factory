@@ -1,0 +1,115 @@
+---
+title: Software Factory - Agent Framework Class Diagram
+---
+classDiagram
+    class BaseAgent {
+        +UUID agent_id
+        +String agent_type
+        +String agent_name
+        +JSON capabilities
+        +Boolean active
+        +Timestamp created_at
+        +think(context)
+        +sendMessage(receiver, content, type)
+        +receiveMessage(message)
+        +logActivity(activity_type, description)
+        +queryKnowledgeBase(query)
+        +updateKnowledgeBase(data)
+    }
+    
+    class ProductManagerAgent {
+        +createRequirement(title, description)
+        +prioritizeBacklog()
+        +reviewImplementation(artifact)
+        +createRoadmap()
+        +defineCriteria(requirement)
+    }
+    
+    class ScrumMasterAgent {
+        +planSprint(backlog)
+        +assignTasks(tasks, agents)
+        +trackProgress()
+        +facilitateMeeting(meeting_type)
+        +removeBlockers(task)
+    }
+    
+    class TechnicalLeadAgent {
+        +reviewCode(code, criteria)
+        +makeArchitectureDecision(problem)
+        +approveDesign(design)
+        +defineCodingStandards()
+        +evaluateTechnology(tech)
+    }
+    
+    class FrontendLeadAgent {
+        +designUIArchitecture()
+        +reviewUIImplementation(code)
+        +ensureAccessibility(component)
+        +optimizePerformance(component)
+    }
+    
+    class BackendLeadAgent {
+        +designAPIs()
+        +defineDataModel()
+        +reviewBackendCode(code)
+        +ensureScalability(service)
+        +defineIntegrationPatterns()
+    }
+    
+    class DeveloperAgent {
+        +implementFeature(task)
+        +fixBug(bug_report)
+        +writeTests(code)
+        +refactorCode(code, reason)
+        +documentCode(code)
+    }
+    
+    class FrontendDeveloperAgent {
+        +implementUIComponent(spec)
+        +stylePage(design)
+        +addClientValidation(form)
+        +optimizeClientPerformance()
+    }
+    
+    class BackendDeveloperAgent {
+        +implementAPIEndpoint(spec)
+        +implementBusinessLogic(requirement)
+        +optimizeQuery(query)
+        +implementDataAccess(model)
+    }
+    
+    class QAAgent {
+        +createTestPlan(requirement)
+        +executeTests(test_suite)
+        +reportBug(issue)
+        +validateFix(bug, fix)
+        +calculateCoverage(code)
+    }
+    
+    class DevOpsAgent {
+        +configureInfrastructure(spec)
+        +deployApplication(version)
+        +monitorPerformance()
+        +autoScaleResources()
+        +manageSecrets()
+    }
+    
+    class DesignerAgent {
+        +createWireframe(requirement)
+        +designUIComponent(spec)
+        +createStyleGuide()
+        +optimizeUserFlow(journey)
+        +ensureConsistency(design)
+    }
+    
+    BaseAgent <|-- ProductManagerAgent
+    BaseAgent <|-- ScrumMasterAgent
+    BaseAgent <|-- TechnicalLeadAgent
+    TechnicalLeadAgent <|-- FrontendLeadAgent
+    TechnicalLeadAgent <|-- BackendLeadAgent
+    BaseAgent <|-- DeveloperAgent
+    DeveloperAgent <|-- FrontendDeveloperAgent
+    DeveloperAgent <|-- BackendDeveloperAgent
+    BaseAgent <|-- QAAgent
+    BaseAgent <|-- DevOpsAgent
+    BaseAgent <|-- DesignerAgent 

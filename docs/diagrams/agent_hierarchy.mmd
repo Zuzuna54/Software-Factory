@@ -1,0 +1,46 @@
+---
+title: Software Factory - Agent Hierarchy & Relationships
+---
+flowchart TD
+    PM[Product Manager Agent] --> SM[Scrum Master Agent]
+    
+    subgraph "Technical Leadership"
+        SM --> FL[Frontend Lead Agent]
+        SM --> BL[Backend Lead Agent]
+    end
+    
+    subgraph "Development Team"
+        FL --> FD1[Frontend Developer Agent 1]
+        FL --> FD2[Frontend Developer Agent 2]
+        FL --> UX[UX/UI Designer Agent]
+        
+        BL --> BD1[Backend Developer Agent 1]
+        BL --> BD2[Backend Developer Agent 2]
+        BL --> DBA[Database Administrator Agent]
+    end
+    
+    subgraph "Quality & Operations"
+        SM --> QA[QA/Test Agent]
+        SM --> DO[DevOps/Infrastructure Agent]
+    end
+    
+    PM --> KB[Knowledge Base]
+    SM --> KB
+    FL --> KB
+    BL --> KB
+    FD1 --> KB
+    FD2 --> KB
+    BD1 --> KB
+    BD2 --> KB
+    QA --> KB
+    DO --> KB
+    UX --> KB
+    DBA --> KB
+    
+    classDef leadership fill:#f9a,stroke:#333,stroke-width:2px
+    classDef development fill:#aff,stroke:#333,stroke-width:1px
+    classDef operations fill:#fea,stroke:#333,stroke-width:1px
+    
+    class PM,SM leadership
+    class FL,BL,UX,FD1,FD2,BD1,BD2,DBA development
+    class QA,DO operations

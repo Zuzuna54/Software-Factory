@@ -1,8 +1,8 @@
-# agents/__init__.py
-# This file makes Python treat the agents directory as a package.
+"""
+Core agent framework package for the autonomous AI development team.
+"""
 
 from .base_agent import BaseAgent
+from .specialized import ProductManagerAgent
 
-# Import other core components or specialized agents as they are created
-
-__all__ = ["BaseAgent"]
+__all__ = ["BaseAgent", "ProductManagerAgent"]

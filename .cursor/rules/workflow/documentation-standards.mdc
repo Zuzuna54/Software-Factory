@@ -1,0 +1,112 @@
+---
+description: Keep the project's documentation **complete, current, and neatly organised** under the `docs/` tree, with supporting Mermaid diagrams in `docs/diagrams/…`. This ensures knowledge is accessible and maintainable throughout the project lifecycle.
+globs: 
+alwaysApply: false
+---
+# Documentation Standards
+
+## Objective
+
+Keep the project's documentation **complete, current, and neatly organised** under the `docs/` tree, with supporting Mermaid diagrams in `docs/diagrams/…`. This ensures knowledge is accessible and maintainable throughout the project lifecycle.
+
+## Documentation Structure
+
+### File Organization
+
+1. **Document Location**
+   - Every Markdown doc lives under an appropriate sub‑folder of `docs/` (`docs/api/`, `docs/architecture/`, etc.)
+   - If the sub‑folder does not exist, create it in the same commit
+   - Follow a logical hierarchy that mirrors the project's architecture
+
+2. **Naming Conventions**
+   - Use kebab-case for all documentation files (e.g., `api-overview.md`, `database-schema.md`)
+   - Names should clearly indicate the content (prefer specificity over brevity)
+   - Include version numbers in filenames only if maintaining multiple versions
+
+## Content Guidelines
+
+### Diagrams
+
+1. **Diagram Storage**
+   - Supporting diagrams must be Mermaid (`.mmd`) files stored under `docs/diagrams/<same‑subfolder>/`
+   - Each `.mmd` file must have the same stem as the doc it supports (e.g. `docs/api/auth.md` ↔ `docs/diagrams/api/auth.mmd`)
+
+2. **Diagram Best Practices**
+   - Keep diagrams focused on one concept per diagram
+   - Include a title and description within the diagram
+   - Use consistent color schemes and shapes across diagrams
+
+### Update Process
+
+1. **Research Before Creating**
+   - Before writing new docs, **scan the entire `docs/` directory** (use semantic search on filenames & headings)
+   - If related content exists, update or extend that file instead of creating a duplicate
+
+2. **Cross‑linking**
+   - Use relative Markdown links (`../api/auth.md`) between docs to avoid broken links on GitHub
+   - Include "Related Documentation" sections at the end of each document
+   - Ensure bidirectional linking between related documents
+
+## Examples
+
+### Good Documentation Structure
+
+```
+docs/
+  api/
+    authentication.md
+    endpoints.md
+  architecture/
+    overview.md
+    data-flow.md
+  diagrams/
+    api/
+      authentication.mmd
+      endpoints.mmd
+    architecture/
+      overview.mmd
+      data-flow.mmd
+```
+
+### Good Commit Message
+
+```
+docs: update authentication flow documentation and diagrams
+
+- Updated docs/api/authentication.md with new OAuth2 flow
+- Created new diagram docs/diagrams/api/authentication.mmd
+- Added cross-references in docs/architecture/overview.md
+```
+
+## Workflow Integration
+
+1. **Commit Hygiene**
+   - Commit message must start with `docs:` or `chore(docs):` and list updated files
+   - If creating a new diagram, mention its filename
+   - Include the reason for documentation changes
+
+2. **Pull Request Process**
+   - Include screenshots of rendered diagrams in PR descriptions
+   - Ensure documentation changes are reviewed alongside code changes
+   - Address documentation feedback before merging
+
+## Verification Checklist
+
+- [ ] Existing docs reviewed & updated where relevant
+- [ ] New Markdown in correct `docs/<folder>/` location
+- [ ] Matching Mermaid diagram in `docs/diagrams/<folder>/` if applicable
+- [ ] All Markdown links resolve when rendered in GitHub
+- [ ] Content follows the project's terminology and naming conventions
+- [ ] Documentation has been reviewed for clarity and completeness
+
+## Related Rules
+
+- @project-overview for understanding project architecture
+- @naming-conventions for consistent terminology
+- @workflow/code-review for documentation review process
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced rule with additional structure, examples, and cross-references

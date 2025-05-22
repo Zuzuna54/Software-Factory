@@ -1,6 +1,7 @@
-# agents/cli/__init__.py
-# This file makes Python treat the agents/cli directory as a package.
+"""
+Agent CLI module for testing agent interactions.
+"""
 
-from .agent_cli import AgentCLI
+from .cli_app import main
 
-__all__ = ["AgentCLI"]
+__all__ = ["main"]

@@ -1,0 +1,134 @@
+---
+title: Software Factory - Artifact Repository Schema
+---
+erDiagram
+    artifacts ||--o{ requirements_artifacts : specializes
+    artifacts ||--o{ design_artifacts : specializes
+    artifacts ||--o{ implementation_artifacts : specializes
+    artifacts ||--o{ testing_artifacts : specializes
+    
+    requirements_artifacts ||--o{ design_artifacts : informs
+    design_artifacts ||--o{ implementation_artifacts : guides
+    implementation_artifacts ||--o{ testing_artifacts : verified_by
+    
+    project_vision ||--o{ project_roadmap : drives
+    project_vision ||--o{ requirements_artifacts : contains
+    
+    artifacts {
+        uuid artifact_id PK
+        varchar artifact_type
+        varchar title
+        text content
+        timestamp created_at
+        uuid created_by FK
+        timestamp last_modified_at
+        uuid last_modified_by FK
+        uuid parent_id FK
+        varchar status
+        jsonb metadata
+        integer version
+        vector content_vector
+    }
+    
+    requirements_artifacts {
+        uuid artifact_id PK
+        uuid project_id FK
+        varchar artifact_type
+        varchar title
+        text description
+        jsonb acceptance_criteria
+        integer priority
+        uuid created_by FK
+        timestamp created_at
+        text reasoning
+        varchar status
+        uuid parent_id FK
+        text stakeholder_value
+        jsonb metadata
+    }
+    
+    design_artifacts {
+        uuid artifact_id PK
+        uuid project_id FK
+        varchar artifact_type
+        varchar title
+        text description
+        text content
+        varchar content_format
+        uuid created_by FK
+        timestamp created_at
+        timestamp last_modified_at
+        uuid[] related_requirements FK
+        jsonb design_decisions
+        jsonb alternatives_considered
+        text reasoning
+        varchar status
+        jsonb review_comments
+        integer version
+    }
+    
+    implementation_artifacts {
+        uuid artifact_id PK
+        uuid project_id FK
+        varchar artifact_type
+        varchar title
+        text description
+        text[] related_files
+        uuid created_by FK
+        timestamp created_at
+        timestamp last_modified_at
+        uuid[] related_requirements FK
+        uuid[] related_designs FK
+        jsonb implementation_decisions
+        text approach_rationale
+        text complexity_assessment
+        varchar status
+        jsonb review_comments
+        jsonb metrics
+    }
+    
+    testing_artifacts {
+        uuid artifact_id PK
+        uuid project_id FK
+        varchar artifact_type
+        varchar title
+        text description
+        text[] test_files
+        uuid created_by FK
+        timestamp created_at
+        uuid[] related_implementation FK
+        jsonb test_coverage
+        text test_approach
+        jsonb results
+        varchar status
+    }
+    
+    project_vision {
+        uuid vision_id PK
+        uuid project_id FK
+        varchar title
+        text vision_statement
+        text target_audience
+        jsonb key_goals
+        jsonb success_metrics
+        jsonb constraints
+        uuid created_by FK
+        timestamp created_at
+        timestamp last_modified_at
+        varchar status
+    }
+    
+    project_roadmap {
+        uuid roadmap_id PK
+        uuid project_id FK
+        varchar title
+        text description
+        jsonb time_horizons
+        jsonb milestones
+        jsonb feature_sequence
+        jsonb dependencies
+        uuid created_by FK
+        timestamp created_at
+        timestamp last_modified_at
+        varchar status
+    } 

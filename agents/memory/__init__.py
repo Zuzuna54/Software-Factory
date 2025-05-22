@@ -1,12 +1,7 @@
-# agents/memory/__init__.py
+"""
+Memory systems for agents to store and retrieve information.
+"""
 
-from .vector_memory import EnhancedVectorMemory
+from .vector_memory import VectorMemory, MemoryItem
 
-# from .enhanced_vector_memory import EnhancedVectorMemory # Uncomment when implemented
-from .search import MemorySearch  # Uncomment when implemented
-
-__all__ = [
-    "VectorMemory",
-    # "EnhancedVectorMemory",
-    "MemorySearch",
-]
+__all__ = ["VectorMemory", "MemoryItem"]

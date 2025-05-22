@@ -1,121 +1,109 @@
-# docker-compose.yml
-
 version: "3.8"
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16-v0.7.3
+    image: postgres:16
+    container_name: ai_team_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: autonomous_ai_dev
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_DB: agent_team
-      POSTGRES_USER: agent_user
-      POSTGRES_PASSWORD: agent_password # Use .env for real secrets
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infra/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infra/db/scripts:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agent_user -d agent_team"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:latest
+    container_name: ai_team_redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
-  # Backend Service (FastAPI/Agents)
-  backend:
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: ai_team_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
     build:
       context: .
-      dockerfile: infra/docker/python/Dockerfile
+      dockerfile: ./infra/docker/api.Dockerfile
+    container_name: ai_team_api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres/autonomous_ai_dev
+      REDIS_URL: redis://redis:6379/0
+      PYTHONPATH: /app
+    ports:
+      - "8000:8000"
     volumes:
-      - .:/app # Mount the entire project directory
+      - ./agents:/app/agents
+      - ./infra:/app/infra
+      - ./app:/app/app
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://agent_user:agent_password@postgres:5432/agent_team # Use asyncpg driver
-      - REDIS_URL=redis://redis:6379/0
-      - PYTHONUNBUFFERED=1 # Ensures logs appear immediately
-      # Add other necessary ENV VARS (e.g., LLM API keys from .env)
-    # Example command (adjust as needed when app/main.py exists):
-    # command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    command: tail -f /dev/null # Keep container running for exec
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
+    command: uvicorn agents.main:app --host 0.0.0.0 --reload
 
-  celery_worker:
+  celery-worker:
     build:
       context: .
-      dockerfile: infra/docker/python/Dockerfile
+      dockerfile: ./infra/docker/api.Dockerfile
+    container_name: ai_team_celery
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres/autonomous_ai_dev
+      REDIS_URL: redis://redis:6379/0
+      PYTHONPATH: /app
     volumes:
-      - .:/app
+      - ./agents:/app/agents
+      - ./infra:/app/infra
+      - ./app:/app/app
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
-      postgres: # Worker might need DB access
-        condition: service_healthy
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://agent_user:agent_password@postgres:5432/agent_team
-      - REDIS_URL=redis://redis:6379/0
-      - PYTHONUNBUFFERED=1
-      # Add other necessary ENV VARS (e.g., LLM API keys from .env)
-    # Command to start the Celery worker
-    # Assumes celery app is defined in agents/orchestration/celery_app.py
     command: celery -A agents.tasks.celery_app worker --loglevel=info
-    restart: unless-stopped
 
-  celery_beat:
+  dashboard:
     build:
       context: .
-      dockerfile: infra/docker/python/Dockerfile
-    volumes:
-      - .:/app
-    depends_on:
-      redis:
-        condition: service_healthy
-      postgres: # Beat might need DB access
-        condition: service_healthy
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://agent_user:agent_password@postgres:5432/agent_team
-      - REDIS_URL=redis://redis:6379/0
-      - PYTHONUNBUFFERED=1
-      # Add other necessary ENV VARS
-    # Command to start the Celery beat scheduler
-    command: celery -A agents.tasks.celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    restart: unless-stopped
-
-  # Frontend Service (Next.js)
-  frontend:
-    build:
-      context: ./dashboard
-      dockerfile: ../infra/docker/node/Dockerfile
+      dockerfile: ./infra/docker/dashboard.Dockerfile
+    container_name: ai_team_dashboard
     ports:
       - "3000:3000"
-    depends_on:
-      - backend # Optional dependency if frontend needs backend at build/start
+    volumes:
+      - ./dashboard:/app
+      - /app/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000 # Example ENV VAR
-      # Add other necessary ENV VARS
-    # Command is inherited from Dockerfile CMD ["pnpm", "dev"] unless overridden here.
-    # Keep command commented out or remove if CMD in Dockerfile is sufficient.
-    # command: pnpm dev
-    restart: unless-stopped
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
   redis_data:
+  pgadmin_data:

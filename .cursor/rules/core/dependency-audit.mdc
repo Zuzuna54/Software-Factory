@@ -1,0 +1,94 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Dependency Audit
+
+## Objective
+
+Eliminate redundant packages and keep the dependency tree lean to improve security, maintainability, and performance across the project.
+
+## Dependency Management Process
+
+### 1. Audit Existing Dependencies
+
+- **Before Adding New Dependencies**:
+  - Query `pyproject.toml`, `package.json`, and `requirements.txt` via semantic search
+  - Review existing dependencies in the same category (testing, UI, HTTP, etc.)
+  - Check for packages that might already provide the needed functionality
+  - Consider built-in libraries that may eliminate the need for external packages
+
+### 2. Selection Criteria
+
+1. **Prefer Existing Libraries**
+   - If similar functionality exists (e.g., `requests` already present, don't add `httpx` unless async is required), **reuse the existing library**
+   - Consider using existing dependencies in new ways before adding alternatives
+
+2. **Evaluation Factors**
+   - **Maturity**: Prefer established libraries with active maintenance
+   - **Size**: Consider impact on bundle size (frontend) or deployment size (backend)
+   - **Security**: Check for known vulnerabilities and security track record
+   - **Compatibility**: Ensure compatibility with existing dependencies and environments
+   - **License**: Verify license compatibility with the project
+
+3. **Documentation**
+   - For any new package, append a justification to `docs/DEPENDENCIES.md` in the same commit
+   - Include: package name, version, purpose, and why existing alternatives were insufficient
+
+## Examples
+
+### Good Example: Dependency Justification
+
+```markdown
+# docs/DEPENDENCIES.md
+
+## Backend Dependencies
+
+### pydantic (2.4.2)
+Purpose: Data validation and settings management
+Justification: Core requirement for FastAPI integration
+
+### alembic (1.12.0)
+Purpose: Database migration management
+Justification: Required for SQLAlchemy schema migrations, no alternatives in existing deps
+
+## Frontend Dependencies
+
+### react-query (5.0.0)
+Purpose: Data fetching and cache management
+Justification: Provides declarative API for data fetching with caching that useEffect+fetch don't offer
+```
+
+### Bad Practices to Avoid
+
+```typescript
+// DON'T: Adding redundant utility libraries
+import _ from 'lodash'; // Large library for simple operations
+// Array.prototype methods would be sufficient:
+const lastItem = items[items.length - 1]; // Instead of _.last(items)
+
+// DON'T: Using multiple libraries for the same purpose
+import axios from 'axios';  // Already using fetch API elsewhere
+```
+
+## Verification Checklist
+
+- [ ] Dependency list checked & logged in agent output
+- [ ] New package justified with specific reasoning
+- [ ] No overlap or redundancy with existing libraries
+- [ ] `docs/DEPENDENCIES.md` updated with justification
+- [ ] Security implications reviewed for new dependencies
+- [ ] Minimal viable version specified rather than latest
+
+## Related Rules
+
+- @simplicity-first for keeping implementation simple
+- @project-overview for technology stack standards
+- @security-standards for security implications of dependencies
+
+---
+
+## Changelog
+
+- v1.0.0 (2024-04-15): Enhanced with detailed criteria, examples, and verification steps
