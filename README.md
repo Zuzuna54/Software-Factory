@@ -34,4 +34,4 @@ All agents communicate via a structured protocol and coordinate through a centra
 
 ## Getting Started
 
-See [docs/setup.md](docs/local-dev/setup.md) for installation and configuration instructions.
+See [docs/local-dev/setup.md](docs/local-dev/setup.md) for installation and configuration instructions.
